@@ -547,6 +547,7 @@ class _LoginScreenState extends State<LoginScreen>
                         onPressed: isSending
                             ? null
                             : () async {
+                                final modalContext = context;
                                 final email = emailController.text.trim();
                                 if (email.isEmpty) {
                                   ScaffoldMessenger.of(context).showSnackBar(
@@ -560,8 +561,9 @@ class _LoginScreenState extends State<LoginScreen>
                                 try {
                                   await FirebaseAuth.instance
                                       .sendPasswordResetEmail(email: email);
-                                  if (Navigator.of(context).canPop()) {
-                                    Navigator.of(context).pop();
+                                  if (!modalContext.mounted) return;
+                                  if (Navigator.of(modalContext).canPop()) {
+                                    Navigator.of(modalContext).pop();
                                   }
                                   if (mounted) {
                                     ScaffoldMessenger.of(
@@ -576,7 +578,10 @@ class _LoginScreenState extends State<LoginScreen>
                                   }
                                 } on FirebaseAuthException catch (error) {
                                   setModalState(() => isSending = false);
-                                  ScaffoldMessenger.of(context).showSnackBar(
+                                  if (!modalContext.mounted) return;
+                                  ScaffoldMessenger.of(
+                                    modalContext,
+                                  ).showSnackBar(
                                     SnackBar(
                                       content: Text(
                                         error.message ??
@@ -586,7 +591,10 @@ class _LoginScreenState extends State<LoginScreen>
                                   );
                                 } catch (error) {
                                   setModalState(() => isSending = false);
-                                  ScaffoldMessenger.of(context).showSnackBar(
+                                  if (!modalContext.mounted) return;
+                                  ScaffoldMessenger.of(
+                                    modalContext,
+                                  ).showSnackBar(
                                     SnackBar(content: Text(error.toString())),
                                   );
                                 }

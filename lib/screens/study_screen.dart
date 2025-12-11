@@ -127,15 +127,18 @@ class _StudyScreenState extends State<StudyScreen> {
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              Colors.white.withOpacity(0.14),
-              Colors.white.withOpacity(0.05),
+              Colors.white.withValues(alpha: 0.14),
+              Colors.white.withValues(alpha: 0.05),
             ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
-          border: Border.all(color: Colors.white.withOpacity(0.15)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
           boxShadow: [
-            BoxShadow(blurRadius: 30, color: Colors.black.withOpacity(0.2)),
+            BoxShadow(
+              blurRadius: 30,
+              color: Colors.black.withValues(alpha: 0.2),
+            ),
           ],
         ),
         child: Column(
@@ -189,7 +192,7 @@ class _StudyScreenState extends State<StudyScreen> {
         'Play Lo-Fi & Silence Notifications',
         style: TextStyle(color: Colors.white70),
       ),
-      activeColor: Colors.greenAccent,
+      activeTrackColor: Colors.greenAccent,
       contentPadding: const EdgeInsets.symmetric(horizontal: 4),
     );
   }
@@ -358,9 +361,11 @@ class _DashboardTile extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(24),
-          color: tile.color.withOpacity(tile.enabled ? 0.18 : 0.1),
+          color: tile.color.withValues(alpha: tile.enabled ? 0.18 : 0.1),
           border: Border.all(
-            color: tile.enabled ? tile.color.withOpacity(0.4) : Colors.white12,
+            color: tile.enabled
+                ? tile.color.withValues(alpha: 0.4)
+                : Colors.white12,
           ),
         ),
         padding: const EdgeInsets.all(18),
@@ -368,7 +373,7 @@ class _DashboardTile extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             CircleAvatar(
-              backgroundColor: tile.color.withOpacity(0.25),
+              backgroundColor: tile.color.withValues(alpha: 0.25),
               child: Icon(tile.icon, color: Colors.white),
             ),
             const Spacer(),

@@ -180,14 +180,14 @@ class _SignupScreenState extends State<SignupScreen>
                         constraints: const BoxConstraints(maxWidth: 520),
                         padding: const EdgeInsets.all(28),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.9),
+                          color: Colors.white.withValues(alpha: 0.9),
                           borderRadius: BorderRadius.circular(32),
                           border: Border.all(
-                            color: Colors.white.withOpacity(0.6),
+                            color: Colors.white.withValues(alpha: 0.6),
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
+                              color: Colors.black.withValues(alpha: 0.1),
                               blurRadius: 40,
                               offset: const Offset(0, 30),
                             ),
@@ -317,7 +317,7 @@ class _SignupScreenState extends State<SignupScreen>
                                       () => _agreedToCode = value ?? false,
                                     );
                                   },
-                                  fillColor: MaterialStateProperty.all(
+                                  fillColor: WidgetStateProperty.all(
                                     const Color(0xFF2962FF),
                                   ),
                                 ),
@@ -425,7 +425,7 @@ class _SignupScreenState extends State<SignupScreen>
       onTap: _pickProfileImage,
       child: CircleAvatar(
         radius: 40,
-        backgroundColor: const Color(0xFF2962FF).withOpacity(0.15),
+        backgroundColor: const Color(0xFF2962FF).withValues(alpha: 0.15),
         child: _selectedImage == null
             ? const Icon(Icons.camera_alt, color: Colors.white, size: 32)
             : ClipOval(
@@ -564,7 +564,7 @@ class _SignupScreenState extends State<SignupScreen>
     required ValueChanged<String?> onChanged,
   }) {
     return DropdownButtonFormField<String>(
-      value: value,
+      initialValue: value,
       decoration: _fieldDecoration(label, Icons.keyboard_arrow_down),
       dropdownColor: Colors.white,
       iconEnabledColor: const Color(0xFF2962FF),
@@ -587,11 +587,11 @@ class _SignupScreenState extends State<SignupScreen>
       labelStyle: const TextStyle(color: Colors.black54),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(18),
-        borderSide: BorderSide(color: Colors.black.withOpacity(0.1)),
+        borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.1)),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(18),
-        borderSide: BorderSide(color: Colors.black.withOpacity(0.1)),
+        borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.1)),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(18),

@@ -1,11 +1,10 @@
 import 'dart:io';
 import 'dart:math';
-import 'dart:ui';
 
 import 'package:confetti/confetti.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:liquid_progress_indicator/liquid_progress_indicator.dart';
+import 'package:liquid_progress_indicator_v2/liquid_progress_indicator.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -225,7 +224,7 @@ class _ResourceCardState extends State<ResourceCard> {
                   Expanded(
                     child: Switch.adaptive(
                       value: !_isMemo,
-                      activeColor: Colors.lightBlueAccent,
+                      activeTrackColor: Colors.lightBlueAccent,
                       onChanged: (value) => setState(() => _isMemo = !value),
                     ),
                   ),
