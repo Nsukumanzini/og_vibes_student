@@ -83,7 +83,8 @@ class _StudyResourcesScreenState extends State<StudyResourcesScreen> {
       length: 2,
       child: VibeScaffold(
         appBar: AppBar(
-          title: const Text('The Vault'),
+          title: const Text('The Vault', style: TextStyle(color: Colors.white)),
+          iconTheme: const IconThemeData(color: Colors.white),
           bottom: const TabBar(
             tabs: [
               Tab(text: '☁️ Online Vault'),
@@ -91,13 +92,15 @@ class _StudyResourcesScreenState extends State<StudyResourcesScreen> {
             ],
           ),
           backgroundColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
+          elevation: 0,
         ),
         body: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFF04030F), Color(0xFF090F2C), Color(0xFF1B2A4A)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
+              colors: [Color(0xFF0D47A1), Color(0xFF6200EA)],
             ),
           ),
           child: TabBarView(
@@ -379,17 +382,15 @@ class _GlassLockerCard extends StatelessWidget {
     final isDownloaded =
         downloadState?.status == VaultDownloadStatus.downloaded &&
         downloadState?.localPath != null;
-    final sizeColor = resource.sizeMb > 10 ? Colors.redAccent : Colors.white60;
-
     return ClipRRect(
       borderRadius: BorderRadius.circular(26),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.08),
+            color: Colors.white.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(26),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+            border: Border.all(color: Colors.white24),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.25),
@@ -423,13 +424,13 @@ class _GlassLockerCard extends StatelessWidget {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.amber.withValues(alpha: 0.2),
+                      color: Colors.white.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
                       resource.year,
                       style: const TextStyle(
-                        color: Colors.amber,
+                        color: Colors.white,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -475,8 +476,8 @@ class _GlassLockerCard extends StatelessWidget {
                 children: [
                   Text(
                     '${resource.sizeMb.toStringAsFixed(1)} MB',
-                    style: TextStyle(
-                      color: sizeColor,
+                    style: const TextStyle(
+                      color: Colors.white,
                       fontWeight: FontWeight.w600,
                     ),
                   ),

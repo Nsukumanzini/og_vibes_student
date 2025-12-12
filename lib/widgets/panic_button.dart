@@ -118,7 +118,7 @@ class _PanicButtonState extends State<PanicButton>
   }
 
   void _startHeartbeatHaptics() async {
-    final hasVibrator = await Vibration.hasVibrator() ?? false;
+    final hasVibrator = await Vibration.hasVibrator();
     if (!hasVibrator) return;
     var intensity = 40;
     _heartbeatTimer?.cancel();

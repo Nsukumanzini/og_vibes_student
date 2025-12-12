@@ -1,5 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:og_vibes_student/widgets/vibe_scaffold.dart';
 
@@ -11,296 +9,400 @@ class StudyGroupFinderScreen extends StatefulWidget {
 }
 
 class _StudyGroupFinderScreenState extends State<StudyGroupFinderScreen> {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  static const _departments = [
+    'All',
+    'Civil',
+    'Electrical',
+    'Finance',
+    'Education',
+    'Office Admin',
+    'Tourism',
+  ];
 
-  User? get _currentUser => _auth.currentUser;
+  final List<_CollabGroup> _groups = [
+    _CollabGroup(
+      title: 'Math N4 Wizards',
+      department: 'Civil',
+      tags: ['#Calculus', '#ExamPrep'],
+      isPrivate: true,
+      members: 3,
+      capacity: 5,
+      avatars: ['M', 'A', 'S'],
+    ),
+    _CollabGroup(
+      title: 'Electrical Systems Lab',
+      department: 'Electrical',
+      tags: ['#Circuits', '#LabPrep'],
+      isPrivate: false,
+      members: 4,
+      capacity: 6,
+      avatars: ['E', 'Q', 'T', 'J'],
+    ),
+    _CollabGroup(
+      title: 'Tourism Pitch Squad',
+      department: 'Tourism',
+      tags: ['#Presentation', '#Marketing'],
+      isPrivate: false,
+      members: 2,
+      capacity: 5,
+      avatars: ['L', 'H'],
+    ),
+    _CollabGroup(
+      title: 'Finance Ledger Lab',
+      department: 'Finance',
+      tags: ['#Accounting', '#StudyJam'],
+      isPrivate: true,
+      members: 1,
+      capacity: 4,
+      avatars: ['F'],
+    ),
+  ];
+
+  String _selectedDept = 'All';
 
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 2,
-      child: VibeScaffold(
-        appBar: AppBar(
-          title: const Text('Study Groups'),
-          bottom: const TabBar(
-            tabs: [
-              Tab(text: 'Browse Groups'),
-              Tab(text: 'My Groups'),
-            ],
+    final filteredGroups = _selectedDept == 'All'
+        ? _groups
+        : _groups.where((group) => group.department == _selectedDept).toList();
+
+    return VibeScaffold(
+      appBar: AppBar(
+        title: const Text(
+          'Collaboration Lobby',
+          style: TextStyle(color: Colors.white),
+        ),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF0D47A1), Color(0xFF2962FF), Color(0xFF6200EA)],
           ),
         ),
-        body: TabBarView(
-          children: [_buildBrowseGroupsTab(), _buildMyGroupsTab()],
-        ),
-        floatingActionButton: FloatingActionButton.extended(
-          onPressed: _showCreateGroupDialog,
-          icon: const Icon(Icons.add),
-          label: const Text('Create Group'),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+          child: Column(
+            children: [
+              _SkillMatcherCTA(onTap: _showSkillMatcherDialog),
+              const SizedBox(height: 16),
+              _DepartmentFilter(
+                departments: _departments,
+                selectedDept: _selectedDept,
+                onSelected: (value) => setState(() => _selectedDept = value),
+              ),
+              const SizedBox(height: 20),
+              Expanded(
+                child: filteredGroups.isEmpty
+                    ? const _EmptyLobbyState()
+                    : ListView.builder(
+                        padding: const EdgeInsets.only(bottom: 24),
+                        itemCount: filteredGroups.length,
+                        itemBuilder: (context, index) => Padding(
+                          padding: EdgeInsets.only(
+                            bottom: index == filteredGroups.length - 1 ? 0 : 16,
+                          ),
+                          child: _GroupCard(group: filteredGroups[index]),
+                        ),
+                      ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildBrowseGroupsTab() {
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: _firestore.collection('study_groups').snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return const Center(child: Text('Unable to load groups right now.'));
-        }
-
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        final docs = snapshot.data?.docs ?? [];
-        if (docs.isEmpty) {
-          return const Center(
-            child: Text('No study groups yet. Be the first to create one!'),
-          );
-        }
-
-        return ListView.separated(
-          padding: const EdgeInsets.all(16),
-          separatorBuilder: (_, _) => const SizedBox(height: 12),
-          itemCount: docs.length,
-          itemBuilder: (context, index) {
-            final doc = docs[index];
-            final data = doc.data();
-            final members = List<String>.from(
-              data['members'] as List<dynamic>? ?? [],
-            );
-            final isMember =
-                _currentUser != null && members.contains(_currentUser!.uid);
-
-            return Card(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 16,
-                ),
-                leading: const CircleAvatar(child: Icon(Icons.groups)),
-                title: Text(data['name'] as String? ?? 'Untitled Group'),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 4),
-                    Text(data['subject'] as String? ?? 'General'),
-                    const SizedBox(height: 6),
-                    Text('${members.length} member(s)'),
-                  ],
-                ),
-                trailing: ElevatedButton(
-                  onPressed: isMember
-                      ? null
-                      : () => _joinGroup(
-                          doc.id,
-                          data['name'] as String? ?? 'Study Group',
-                        ),
-                  child: Text(isMember ? 'Joined' : 'Join'),
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Widget _buildMyGroupsTab() {
-    final user = _currentUser;
-    if (user == null) {
-      return const Center(child: Text('Sign in to manage your study groups.'));
-    }
-
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: _firestore
-          .collection('study_groups')
-          .where('createdBy', isEqualTo: user.uid)
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return const Center(child: Text('Unable to load your groups.'));
-        }
-
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        final docs = snapshot.data?.docs ?? [];
-        if (docs.isEmpty) {
-          return const Center(
-            child: Text('Create a group to collaborate with classmates.'),
-          );
-        }
-
-        return ListView.separated(
-          padding: const EdgeInsets.all(16),
-          separatorBuilder: (_, _) => const SizedBox(height: 12),
-          itemCount: docs.length,
-          itemBuilder: (context, index) {
-            final doc = docs[index];
-            final data = doc.data();
-
-            return Card(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 12,
-                ),
-                title: Text(data['name'] as String? ?? 'Untitled Group'),
-                subtitle: Text(data['subject'] as String? ?? 'General'),
-                trailing: IconButton(
-                  icon: const Icon(Icons.delete_outline),
-                  onPressed: () => _deleteGroup(doc.id),
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Future<void> _joinGroup(String groupId, String groupName) async {
-    final user = _currentUser;
-    if (user == null) {
-      _showAuthRequiredMessage();
-      return;
-    }
-
-    try {
-      await _firestore.collection('study_groups').doc(groupId).update({
-        'members': FieldValue.arrayUnion([user.uid]),
-      });
-      _showSnackBar('Joined $groupName');
-    } catch (error) {
-      _showSnackBar('Unable to join $groupName');
-    }
-  }
-
-  Future<void> _deleteGroup(String groupId) async {
-    try {
-      await _firestore.collection('study_groups').doc(groupId).delete();
-      _showSnackBar('Group deleted');
-    } catch (error) {
-      _showSnackBar('Unable to delete group at the moment');
-    }
-  }
-
-  Future<void> _showCreateGroupDialog() async {
-    final user = _currentUser;
-    if (user == null) {
-      _showAuthRequiredMessage();
-      return;
-    }
-
-    final nameController = TextEditingController();
-    final subjectController = TextEditingController();
-    final formKey = GlobalKey<FormState>();
+  Future<void> _showSkillMatcherDialog() async {
+    const subjects = [
+      'Math N4',
+      'Engineering Science',
+      'Financial Accounting',
+      'Tourism Pitch',
+      'Office Admin Suite',
+    ];
 
     await showDialog<void>(
       context: context,
-      builder: (dialogContext) {
-        var isSaving = false;
-        return StatefulBuilder(
-          builder: (context, setStateDialog) {
-            return AlertDialog(
-              title: const Text('Create Group'),
-              content: Form(
-                key: formKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextFormField(
-                      controller: nameController,
-                      decoration: const InputDecoration(
-                        labelText: 'Group Name',
-                      ),
-                      textInputAction: TextInputAction.next,
-                      validator: (value) =>
-                          value == null || value.trim().isEmpty
-                          ? 'Enter a group name'
-                          : null,
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: subjectController,
-                      decoration: const InputDecoration(labelText: 'Subject'),
-                      validator: (value) =>
-                          value == null || value.trim().isEmpty
-                          ? 'Enter a subject'
-                          : null,
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: isSaving
-                      ? null
-                      : () => Navigator.of(dialogContext).pop(),
-                  child: const Text('Cancel'),
-                ),
-                FilledButton.icon(
-                  onPressed: isSaving
-                      ? null
-                      : () async {
-                          if (!formKey.currentState!.validate()) {
-                            return;
-                          }
-
-                          final navigator = Navigator.of(dialogContext);
-                          setStateDialog(() => isSaving = true);
-                          try {
-                            await _firestore.collection('study_groups').add({
-                              'name': nameController.text.trim(),
-                              'subject': subjectController.text.trim(),
-                              'createdBy': user.uid,
-                              'members': [user.uid],
-                              'createdAt': FieldValue.serverTimestamp(),
-                            });
-                            if (mounted) {
-                              navigator.pop();
-                            }
-                            _showSnackBar('Group created');
-                          } catch (error) {
-                            setStateDialog(() => isSaving = false);
-                            _showSnackBar('Unable to create group');
-                          }
-                        },
-                  icon: isSaving
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.save),
-                  label: const Text('Save'),
-                ),
-              ],
-            );
-          },
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('I need help with...'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: subjects
+                .map(
+                  (subject) => ListTile(
+                    title: Text(subject),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.of(context).pop(),
+                  ),
+                )
+                .toList(),
+          ),
         );
       },
     );
   }
+}
 
-  void _showAuthRequiredMessage() {
-    _showSnackBar('Please sign in to keep your study progress in sync.');
+class _SkillMatcherCTA extends StatelessWidget {
+  const _SkillMatcherCTA({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: Colors.white24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.25),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Row(
+          children: const [
+            Icon(Icons.auto_awesome, color: Color(0xFFFFD54F)),
+            SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'I need help with... Tap to match skills',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            Icon(Icons.chevron_right, color: Colors.white70),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DepartmentFilter extends StatelessWidget {
+  const _DepartmentFilter({
+    required this.departments,
+    required this.selectedDept,
+    required this.onSelected,
+  });
+
+  final List<String> departments;
+  final String selectedDept;
+  final ValueChanged<String> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 44,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: departments.length,
+        separatorBuilder: (_, spacing) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final dept = departments[index];
+          final selected = dept == selectedDept;
+          return ChoiceChip(
+            label: Text(dept),
+            selected: selected,
+            onSelected: (_) => onSelected(dept),
+            selectedColor: Colors.white24,
+            backgroundColor: Colors.white10,
+            side: BorderSide(color: selected ? Colors.white : Colors.white24),
+            labelStyle: TextStyle(
+              color: Colors.white.withValues(alpha: selected ? 1 : 0.7),
+              fontWeight: FontWeight.w600,
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _GroupCard extends StatelessWidget {
+  const _GroupCard({required this.group});
+
+  final _CollabGroup group;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white30),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.2),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  group.title,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              if (group.isPrivate)
+                const Icon(Icons.lock_outline, color: Colors.white70),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: group.tags
+                .map(
+                  (tag) => Chip(
+                    label: Text(tag),
+                    backgroundColor: Colors.white24,
+                    labelStyle: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                )
+                .toList(),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              _FacePile(avatars: group.avatars),
+              const Spacer(),
+              Text(
+                '${group.members}/${group.capacity} Filled',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: () {},
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.amberAccent,
+                foregroundColor: Colors.black,
+              ),
+              child: const Text('Join Group'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FacePile extends StatelessWidget {
+  const _FacePile({required this.avatars});
+
+  final List<String> avatars;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 110,
+      height: 50,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: avatars.take(3).toList().asMap().entries.map((entry) {
+          final index = entry.key;
+          final label = entry.value;
+          return Positioned(
+            left: index * 28,
+            child: CircleAvatar(
+              radius: 22,
+              backgroundColor: _avatarColor(index),
+              child: Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
   }
 
-  void _showSnackBar(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+  Color _avatarColor(int index) {
+    const palette = [Color(0xFF2962FF), Color(0xFF00BFA5), Color(0xFFFF6D00)];
+    return palette[index % palette.length];
   }
+}
+
+class _EmptyLobbyState extends StatelessWidget {
+  const _EmptyLobbyState();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: const [
+        Icon(Icons.menu_book_outlined, size: 64, color: Colors.white70),
+        SizedBox(height: 12),
+        Text(
+          'No groups match this department yet.',
+          style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w600),
+        ),
+        SizedBox(height: 4),
+        Text(
+          'Tap "I need help with..." to summon collaborators.',
+          style: TextStyle(color: Colors.white54),
+        ),
+      ],
+    );
+  }
+}
+
+class _CollabGroup {
+  const _CollabGroup({
+    required this.title,
+    required this.department,
+    required this.tags,
+    required this.isPrivate,
+    required this.members,
+    required this.capacity,
+    required this.avatars,
+  });
+
+  final String title;
+  final String department;
+  final List<String> tags;
+  final bool isPrivate;
+  final int members;
+  final int capacity;
+  final List<String> avatars;
 }

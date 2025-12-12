@@ -7,6 +7,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'package:og_vibes_student/screens/bursary_screen.dart';
+import 'package:og_vibes_student/screens/checklist_screen.dart';
+import 'package:og_vibes_student/screens/flashcards_screen.dart';
 import 'package:og_vibes_student/screens/past_papers_screen.dart';
 import 'package:og_vibes_student/screens/study_hub_screens.dart';
 import 'package:og_vibes_student/widgets/vibe_scaffold.dart';
@@ -224,6 +227,24 @@ class _StudyScreenState extends State<StudyScreen> {
         color: const Color(0xFF4ADE80),
         onTap: () => _openStudyGroups(context),
       ),
+      _DashboardTileData(
+        title: 'Flashcards',
+        icon: Icons.style,
+        color: const Color(0xFFFF5C8D),
+        onTap: () => _openFlashcards(context),
+      ),
+      _DashboardTileData(
+        title: 'Bursaries',
+        icon: Icons.monetization_on,
+        color: const Color(0xFF00C853),
+        onTap: () => _openBursaries(context),
+      ),
+      _DashboardTileData(
+        title: 'Exam Checklist',
+        icon: Icons.check_box,
+        color: const Color(0xFF26C6DA),
+        onTap: () => _openChecklist(context),
+      ),
     ];
 
     return AnimationLimiter(
@@ -329,6 +350,24 @@ class _StudyScreenState extends State<StudyScreen> {
     Navigator.of(
       context,
     ).push(MaterialPageRoute(builder: (_) => const StudyGroupFinderScreen()));
+  }
+
+  void _openFlashcards(BuildContext context) {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const FlashcardsScreen()));
+  }
+
+  void _openBursaries(BuildContext context) {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const BursaryScreen()));
+  }
+
+  void _openChecklist(BuildContext context) {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const ChecklistScreen()));
   }
 }
 

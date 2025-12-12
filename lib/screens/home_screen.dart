@@ -501,6 +501,39 @@ class _HomeScreenState extends State<HomeScreen> {
           ).push(MaterialPageRoute(builder: (_) => const RewardsScreen()));
         },
       ),
+      _HubCardInfo(
+        title: '👑 Miss & Mr Vibes',
+        icon: Icons.emoji_events,
+        color: Colors.deepPurple,
+        gradientColors: const [Color(0xFF512DA8), Color(0xFFE91E63)],
+        onTap: (context) {
+          Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const MissMrVibesScreen()));
+        },
+      ),
+      _HubCardInfo(
+        title: '🗳️ SRC Voting Booth',
+        icon: Icons.how_to_vote,
+        color: const Color(0xFF1B5E20),
+        gradientColors: const [Color(0xFF1B5E20), Color(0xFF000000)],
+        onTap: (context) {
+          Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const SrcVotingScreen()));
+        },
+      ),
+      _HubCardInfo(
+        title: '🧠 Trivia Night',
+        icon: Icons.quiz,
+        color: const Color(0xFFFF9800),
+        gradientColors: const [Color(0xFFFFA726), Color(0xFFFF7043)],
+        onTap: (context) {
+          Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const TriviaGameScreen()));
+        },
+      ),
     ];
 
     return GridView.builder(
@@ -515,8 +548,13 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       itemBuilder: (context, index) {
         final card = cards[index];
+        final gradientColors = card.gradientColors
+            ?.map((color) => color.withValues(alpha: 0.9))
+            .toList();
         return Card(
-          color: Colors.white.withValues(alpha: 0.15),
+          color: Colors.white.withValues(
+            alpha: gradientColors == null ? 0.15 : 0.05,
+          ),
           elevation: 0,
           shadowColor: Colors.transparent,
           shape: RoundedRectangleBorder(
@@ -526,13 +564,38 @@ class _HomeScreenState extends State<HomeScreen> {
           child: InkWell(
             borderRadius: BorderRadius.circular(24),
             onTap: () => card.onTap(context),
-            child: Padding(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: gradientColors != null
+                    ? LinearGradient(
+                        colors: gradientColors,
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      )
+                    : null,
+                color: gradientColors == null
+                    ? Colors.white.withValues(alpha: 0.04)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                boxShadow: gradientColors != null
+                    ? [
+                        BoxShadow(
+                          color: gradientColors.last.withValues(alpha: 0.35),
+                          blurRadius: 25,
+                          offset: const Offset(0, 12),
+                        ),
+                      ]
+                    : null,
+              ),
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   CircleAvatar(
-                    backgroundColor: Colors.white24,
+                    backgroundColor: gradientColors != null
+                        ? Colors.white.withValues(alpha: 0.2)
+                        : card.color.withValues(alpha: 0.2),
                     child: Icon(card.icon, color: Colors.white),
                   ),
                   const Spacer(),
@@ -863,10 +926,12 @@ class _HubCardInfo {
     required this.icon,
     required this.color,
     required this.onTap,
+    this.gradientColors,
   });
 
   final String title;
   final IconData icon;
   final Color color;
+  final List<Color>? gradientColors;
   final void Function(BuildContext context) onTap;
 }
