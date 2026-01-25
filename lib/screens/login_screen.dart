@@ -2,7 +2,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:glass_kit/glass_kit.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../services/auth_service.dart';
@@ -24,10 +23,8 @@ class _LoginScreenState extends State<LoginScreen>
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _isLoading = false;
-  bool _isGoogleLoading = false;
   bool _isObscure = true;
   final AuthService _authService = AuthService();
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
 
   @override
   void initState() {
@@ -143,7 +140,7 @@ class _LoginScreenState extends State<LoginScreen>
                             child: Padding(
                               padding: const EdgeInsets.all(8),
                               child: Image.asset(
-                                'assets/images/logo.png',
+                                'assets/images/icon.png',
                                 fit: BoxFit.contain,
                               ),
                             ),
@@ -282,42 +279,6 @@ class _LoginScreenState extends State<LoginScreen>
                                       ),
                               ),
                             ),
-                            const SizedBox(height: 12),
-                            SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton.icon(
-                                onPressed: _isGoogleLoading
-                                    ? null
-                                    : _signInWithGoogle,
-                                style: ElevatedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 14,
-                                  ),
-                                  backgroundColor: Colors.white,
-                                  foregroundColor: Colors.black,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(18),
-                                  ),
-                                ),
-                                icon: _isGoogleLoading
-                                    ? const SizedBox(
-                                        width: 18,
-                                        height: 18,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                        ),
-                                      )
-                                    : const Icon(Icons.g_mobiledata, size: 28),
-                                label: Text(
-                                  _isGoogleLoading
-                                      ? 'Connecting...'
-                                      : 'Continue with Google',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            ),
                             const SizedBox(height: 8),
                             TextButton(
                               onPressed: () =>
@@ -423,42 +384,7 @@ class _LoginScreenState extends State<LoginScreen>
     }
   }
 
-  Future<void> _signInWithGoogle() async {
-    setState(() => _isGoogleLoading = true);
-    try {
-      final googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) {
-        if (mounted) {
-          setState(() => _isGoogleLoading = false);
-        }
-        return;
-      }
 
-      final googleAuth = await googleUser.authentication;
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-
-      await FirebaseAuth.instance.signInWithCredential(credential);
-
-      if (!mounted) return;
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
-        (route) => false,
-      );
-    } catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Google sign-in failed: $error')),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isGoogleLoading = false);
-      }
-    }
-  }
 
   Future<void> _showForgotPasswordSheet(BuildContext context) async {
     final emailController = TextEditingController(

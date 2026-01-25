@@ -4,13 +4,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
-import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:og_vibes_student/widgets/app_drawer.dart';
 import 'package:og_vibes_student/widgets/panic_button.dart';
 import 'package:og_vibes_student/widgets/vibe_scaffold.dart';
 import 'package:shimmer/shimmer.dart';
 
-import '../services/ad_service.dart';
 import '../widgets/post_card.dart';
 import 'announcements_screen.dart';
 import 'campus_hub_screens.dart';
@@ -27,9 +25,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  static const int _adInterval = 4;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final Map<int, BannerAd?> _feedAds = {};
   final List<String> _campusFilters = const [
     'All Campuses',
     'Balfour',
@@ -59,9 +55,6 @@ class _HomeScreenState extends State<HomeScreen> {
   void dispose() {
     _scrollController.removeListener(_handleScroll);
     _scrollController.dispose();
-    for (final ad in _feedAds.values) {
-      ad?.dispose();
-    }
     super.dispose();
   }
 
@@ -290,7 +283,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Center(
-                    child: Image.asset('assets/images/logo.png', height: 40),
+                    child: Image.asset('assets/images/icon.png', height: 40),
                   ),
                 ),
                 const SizedBox(width: 48),
@@ -358,21 +351,21 @@ class _HomeScreenState extends State<HomeScreen> {
     final events = <Map<String, dynamic>>[
       {
         'title': 'Silent Disco',
-        'location': 'Braamfontein',
+        'location': 'Suncity',
         'time': 'Tonight @ 21:00',
         'tag': 'Hot',
         'color': const Color(0xFF7C4DFF),
       },
       {
         'title': 'Study Jam',
-        'location': 'Library Hub',
+        'location': 'De Bruin Park',
         'time': 'Wed @ 18:30',
         'tag': 'Focus',
         'color': const Color(0xFF00BFA5),
       },
       {
         'title': 'Market Day',
-        'location': 'Main Quad',
+        'location': 'Campus',
         'time': 'Sat @ 10:00',
         'tag': 'Fresh',
         'color': const Color(0xFFFF7043),
@@ -472,7 +465,7 @@ class _HomeScreenState extends State<HomeScreen> {
         },
       ),
       _HubCardInfo(
-        title: 'Events & Parties',
+        title: 'Events',
         icon: Icons.event,
         color: Colors.pinkAccent,
         onTap: (context) {
@@ -513,7 +506,7 @@ class _HomeScreenState extends State<HomeScreen> {
         },
       ),
       _HubCardInfo(
-        title: '🗳️ SRC Voting Booth',
+        title: '🗳️ SRC Voting',
         icon: Icons.how_to_vote,
         color: const Color(0xFF1B5E20),
         gradientColors: const [Color(0xFF1B5E20), Color(0xFF000000)],
@@ -541,16 +534,17 @@ class _HomeScreenState extends State<HomeScreen> {
       physics: const NeverScrollableScrollPhysics(),
       itemCount: cards.length,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
-        childAspectRatio: 1.1,
+        crossAxisCount: 2, // Keeps 2 buttons side by side
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: 2.4, // KEY CHANGE: Makes buttons short and wide
       ),
       itemBuilder: (context, index) {
         final card = cards[index];
         final gradientColors = card.gradientColors
             ?.map((color) => color.withValues(alpha: 0.9))
             .toList();
+
         return Card(
           color: Colors.white.withValues(
             alpha: gradientColors == null ? 0.15 : 0.05,
@@ -558,11 +552,11 @@ class _HomeScreenState extends State<HomeScreen> {
           elevation: 0,
           shadowColor: Colors.transparent,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(16), // Slightly smaller radius
             side: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
           ),
           child: InkWell(
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(16),
             onTap: () => card.onTap(context),
             child: Container(
               decoration: BoxDecoration(
@@ -573,44 +567,41 @@ class _HomeScreenState extends State<HomeScreen> {
                         end: Alignment.bottomRight,
                       )
                     : null,
-                color: gradientColors == null
-                    ? Colors.white.withValues(alpha: 0.04)
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-                boxShadow: gradientColors != null
-                    ? [
-                        BoxShadow(
-                          color: gradientColors.last.withValues(alpha: 0.35),
-                          blurRadius: 25,
-                          offset: const Offset(0, 12),
-                        ),
-                      ]
-                    : null,
+                borderRadius: BorderRadius.circular(16),
               ),
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Row(
+                // Changed from Column to Row for compactness
                 children: [
-                  CircleAvatar(
-                    backgroundColor: gradientColors != null
-                        ? Colors.white.withValues(alpha: 0.2)
-                        : card.color.withValues(alpha: 0.2),
-                    child: Icon(card.icon, color: Colors.white),
-                  ),
-                  const Spacer(),
-                  Text(
-                    card.title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 16,
-                      color: Colors.white,
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: gradientColors != null
+                          ? Colors.white.withValues(alpha: 0.2)
+                          : card.color.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(12),
                     ),
+                    child: Icon(card.icon, color: Colors.white, size: 20),
                   ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Tap to explore',
-                    style: TextStyle(color: Colors.white70, fontSize: 12),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          card.title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13, // Slightly smaller font
+                            color: Colors.white,
+                            height: 1.1,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -625,25 +616,14 @@ class _HomeScreenState extends State<HomeScreen> {
     List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
   ) {
     final postCount = docs.length;
-    final totalItems = _totalItemsWithAds(postCount);
-
     return SliverList(
       delegate: SliverChildBuilderDelegate((context, index) {
-        if (_isAdIndex(index)) {
-          final adSlot = (index + 1) ~/ (_adInterval + 1) - 1;
-          return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: _buildAdCard(adSlot),
-          );
-        }
-
-        final postIndex = _mapIndexToPost(index);
-        if (postIndex >= docs.length) {
+        if (index >= docs.length) {
           return const SizedBox.shrink();
         }
-        final doc = docs[postIndex];
+        final doc = docs[index];
         return AnimationConfiguration.staggeredList(
-          position: postIndex,
+          position: index,
           duration: const Duration(milliseconds: 375),
           child: SlideAnimation(
             verticalOffset: 50,
@@ -658,86 +638,11 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         );
-      }, childCount: totalItems),
+      }, childCount: postCount),
     );
   }
 
-  int _totalItemsWithAds(int postCount) {
-    if (!AdHelper.isSupported || _adInterval <= 0) {
-      return postCount;
-    }
-    final adSlots = postCount ~/ _adInterval;
-    return postCount + adSlots;
-  }
-
-  bool _isAdIndex(int index) {
-    if (!AdHelper.isSupported || _adInterval <= 0) {
-      return false;
-    }
-    return (index + 1) % (_adInterval + 1) == 0;
-  }
-
-  int _mapIndexToPost(int adjustedIndex) {
-    if (!AdHelper.isSupported || _adInterval <= 0) {
-      return adjustedIndex;
-    }
-    final adsBefore = (adjustedIndex + 1) ~/ (_adInterval + 1);
-    return adjustedIndex - adsBefore;
-  }
-
-  Widget _buildAdCard(int position) {
-    final banner = _feedAds[position] ?? _createBannerAd(position);
-    if (banner == null) {
-      return const SizedBox.shrink();
-    }
-    return Card(
-      margin: EdgeInsets.zero,
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: const [
-                Icon(Icons.auto_graph, color: Colors.deepOrangeAccent),
-                SizedBox(width: 8),
-                Text(
-                  'Sponsored',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: Container(
-                color: Colors.white,
-                height: banner.size.height.toDouble(),
-                width: double.infinity,
-                alignment: Alignment.center,
-                child: AdWidget(ad: banner),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  BannerAd? _createBannerAd(int position) {
-    final ad = AdHelper.getBannerAd(
-      onAdLoaded: () {
-        if (!mounted) return;
-        setState(() {});
-      },
-    );
-    if (ad != null) {
-      _feedAds[position] = ad;
-    }
-    return ad;
-  }
+  // ...existing code...
 
   SliverList _buildLoadingSliver() {
     return SliverList(

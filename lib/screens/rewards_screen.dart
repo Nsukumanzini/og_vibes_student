@@ -1,7 +1,6 @@
 ﻿import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:og_vibes_student/services/ad_service.dart';
 import 'package:og_vibes_student/widgets/vibe_scaffold.dart';
 
 class RewardsScreen extends StatefulWidget {
@@ -20,7 +19,7 @@ class _RewardsScreenState extends State<RewardsScreen> {
   };
 
   String _selectedReward = 'MTN Airtime R10';
-  bool _loadingAd = false;
+  // Removed ad loading state
   bool _requesting = false;
 
   @override
@@ -105,34 +104,7 @@ class _RewardsScreenState extends State<RewardsScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      style: _buttonStyle(),
-                      onPressed: _loadingAd
-                          ? null
-                          : () => _watchRewardedAd(user.uid),
-                      icon: _loadingAd
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  Colors.black,
-                                ),
-                              ),
-                            )
-                          : const Icon(
-                              Icons.play_circle_outline,
-                              color: Colors.black,
-                            ),
-                      label: const Text(
-                        'Watch Video (+50 Points)',
-                        style: TextStyle(color: Colors.black),
-                      ),
-                    ),
-                  ),
+                  // Removed ad-watching button
                   const SizedBox(height: 32),
                   Align(
                     alignment: Alignment.centerLeft,
@@ -213,24 +185,7 @@ class _RewardsScreenState extends State<RewardsScreen> {
     );
   }
 
-  Future<void> _watchRewardedAd(String uid) async {
-    setState(() => _loadingAd = true);
-    try {
-      final shown = await AdHelper.loadRewardedAd(
-        onReward: () => _handleRewardEarned(uid),
-      );
-
-      if (!shown && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No ad available right now.')),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _loadingAd = false);
-      }
-    }
-  }
+  // Removed ad-watching logic
 
   void _handleRewardEarned(String uid) {
     FirebaseFirestore.instance

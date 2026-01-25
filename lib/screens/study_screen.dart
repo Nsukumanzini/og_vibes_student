@@ -313,8 +313,10 @@ class _StudyScreenState extends State<StudyScreen> {
   }
 
   Future<void> _openPortal(BuildContext context) async {
+    const portalUrl =
+        'https://ienabler.gscollege.edu.za/pls/prodi41/w99pkg.mi_login';
     if (kIsWeb) {
-      final success = await launchUrl(Uri.parse('https://google.com'));
+      final success = await launchUrl(Uri.parse(portalUrl));
       if (!context.mounted) {
         return;
       }

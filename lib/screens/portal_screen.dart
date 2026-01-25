@@ -11,7 +11,8 @@ class PortalScreen extends StatefulWidget {
 }
 
 class _PortalScreenState extends State<PortalScreen> {
-  static const String _initialUrl = 'https://gscollege.co.za';
+  static const String _initialUrl =
+      'https://ienabler.gscollege.edu.za/pls/prodi41/w99pkg.mi_login';
 
   late final WebViewController _controller;
   double _progress = 0;

@@ -22,7 +22,7 @@ class _MissMrVibesScreenState extends State<MissMrVibesScreen>
     Contestant(
       name: 'Athenkosi Mthembu',
       department: 'Architecture Studio',
-      imageUrl: 'assets/images/logo.png',
+      imageUrl: 'assets/images/icon.png',
       voteCount: 791,
       percentage: 0.58,
     ),
@@ -36,7 +36,7 @@ class _MissMrVibesScreenState extends State<MissMrVibesScreen>
     Contestant(
       name: 'Sandile Ndlovu',
       department: 'Civil Engineering Guild',
-      imageUrl: 'assets/images/logo.png',
+      imageUrl: 'assets/images/icon.png',
       voteCount: 668,
       percentage: 0.48,
     ),
