@@ -81,17 +81,11 @@ class _AppDrawerState extends State<AppDrawer> {
   @override
   Widget build(BuildContext context) {
     return Drawer(
-      backgroundColor: const Color(0xFF0D47A1),
+      backgroundColor: const Color(0xFF0A0E21),
       child: Column(
         children: [
           DrawerHeader(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFF0D47A1), Color(0xFF5E35B1)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
+            decoration: const BoxDecoration(color: Color(0xFF0A0E21)),
             margin: EdgeInsets.zero,
             padding: const EdgeInsets.fromLTRB(16, 32, 16, 16),
             child: Column(
@@ -280,7 +274,7 @@ class _AppDrawerState extends State<AppDrawer> {
                     );
                   },
                 ),
-                const Divider(),
+                const Divider(color: Colors.white24),
                 SwitchListTile.adaptive(
                   value: _isExamMode,
                   title: const Text(
@@ -330,7 +324,7 @@ class _AppDrawerState extends State<AppDrawer> {
                     );
                   },
                 ),
-                const Divider(),
+                const Divider(color: Colors.white24),
                 ListTile(
                   leading: const Icon(
                     Icons.new_releases,
@@ -359,10 +353,13 @@ class _AppDrawerState extends State<AppDrawer> {
                   },
                 ),
                 ListTile(
-                  leading: const Icon(Icons.logout, color: Colors.redAccent),
+                  leading: const Icon(Icons.logout, color: Colors.red),
                   title: const Text(
                     'Log Out',
-                    style: TextStyle(color: Colors.white),
+                    style: TextStyle(
+                      color: Colors.red,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   onTap: () => _logOut(context),
                 ),
@@ -401,8 +398,14 @@ class _AppDrawerState extends State<AppDrawer> {
 
   Future<void> _launchLegalPage() async {
     const url = 'https://www.nsfas.org.za';
-    final uri = Uri.parse(url);
-    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+    try {
+      if (!await launchUrl(Uri.parse(url))) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Unable to open legal information.')),
+        );
+      }
+    } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Unable to open legal information.')),

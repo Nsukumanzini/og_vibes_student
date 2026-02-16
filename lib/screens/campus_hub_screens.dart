@@ -8,6 +8,7 @@ export 'rewards_screen.dart';
 export 'miss_mr_vibes_screen.dart';
 export 'src_voting_screen.dart';
 export 'trivia_game_screen.dart';
+export 'campus_map_screen.dart';
 
 class AccommodationScreen extends StatelessWidget {
   const AccommodationScreen({super.key});

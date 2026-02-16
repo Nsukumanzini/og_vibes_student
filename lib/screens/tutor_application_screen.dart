@@ -12,10 +12,10 @@ class _TutorApplicationScreenState extends State<TutorApplicationScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _motivationController = TextEditingController();
   final List<String> _subjects = [
-    'Math N4',
-    'Physics N5',
-    'Accounting N6',
-    'Programming II',
+    'Math ',
+    'Physics ',
+    'Computer Programming',
+    'Multimedia services',
   ];
 
   String? _selectedSubject;
@@ -185,7 +185,7 @@ class _TutorApplicationScreenState extends State<TutorApplicationScreen> {
     setState(() => _isSubmitting = false);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Application submitted! We will email you soon.'),
+        content: Text('Application submitted! We will email or call you soon.'),
       ),
     );
     _formKey.currentState!.reset();

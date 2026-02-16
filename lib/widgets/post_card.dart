@@ -52,7 +52,19 @@ class _PostCardState extends State<PostCard> {
     final isOnline = data['isOnline'] == true;
     final poll = data['poll'] as Map<String, dynamic>?;
     final timestamp = data['createdAt'];
-    final likes = (data['likes'] as List?)?.whereType<String>().toList() ?? [];
+
+    // Handle likes field robustly
+    List<String> likes = [];
+    final rawLikes = data['likes'];
+    if (rawLikes is List) {
+      likes = rawLikes.whereType<String>().toList();
+    } else if (rawLikes is int) {
+      // Legacy: treat as empty list
+      likes = [];
+    } else if (rawLikes is Iterable) {
+      likes = List<String>.from(rawLikes);
+    }
+
     final currentUid = FirebaseAuth.instance.currentUser?.uid;
     final hasLiked = currentUid != null && likes.contains(currentUid);
     final postId = widget.doc.id;
@@ -73,10 +85,13 @@ class _PostCardState extends State<PostCard> {
 
     final bool shouldTrimText = content.length > 100 && !_isExpanded;
 
+    final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
+    // Use OG Vibes Blue as card background for strong contrast
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: const Color(0xFF2962FF), // OG Vibes Blue
         borderRadius: BorderRadius.circular(16),
         boxShadow: const [
           BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 4)),
@@ -95,10 +110,12 @@ class _PostCardState extends State<PostCard> {
               isOnline: isOnline,
               department: department,
               timestamp: timestamp,
+              textTheme: textTheme,
+              colorScheme: colorScheme,
             ),
             if (content.isNotEmpty) ...[
               const SizedBox(height: 12),
-              _buildPostText(content, shouldTrimText),
+              _buildPostText(content, shouldTrimText, textTheme),
             ],
             if (images.isNotEmpty) ...[
               const SizedBox(height: 16),
@@ -111,6 +128,8 @@ class _PostCardState extends State<PostCard> {
               hasLiked: hasLiked,
               postId: postId,
               data: data,
+              textTheme: textTheme,
+              colorScheme: colorScheme,
             ),
           ],
         ),
@@ -126,6 +145,8 @@ class _PostCardState extends State<PostCard> {
     required bool isOnline,
     required String department,
     required dynamic timestamp,
+    required TextTheme textTheme,
+    required ColorScheme colorScheme,
   }) {
     final displayName = isAnonymous
         ? 'Spotted @ $campus'
@@ -141,19 +162,21 @@ class _PostCardState extends State<PostCard> {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             border: Border.all(
-              color: isOnline ? Colors.green : Colors.blueAccent,
+              color: isOnline ? Colors.green : colorScheme.secondary,
               width: 2,
             ),
           ),
           child: CircleAvatar(
             radius: 24,
-            backgroundColor: Colors.blueGrey[50],
+            backgroundColor: Theme.of(context).cardTheme.color,
             child: isAnonymous
-                ? const Icon(Icons.emoji_emotions_outlined, color: Colors.blue)
+                ? Icon(
+                    Icons.emoji_emotions_outlined,
+                    color: colorScheme.secondary,
+                  )
                 : Text(
                     displayName[0].toUpperCase(),
-                    style: const TextStyle(
-                      color: Colors.black,
+                    style: textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -169,29 +192,31 @@ class _PostCardState extends State<PostCard> {
                   Expanded(
                     child: Text(
                       displayName,
-                      style: const TextStyle(
+                      style: textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w700,
-                        color: Colors.black,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   if (isVerified)
-                    const Icon(Icons.verified, color: Colors.blue, size: 16),
+                    Icon(
+                      Icons.verified,
+                      color: colorScheme.secondary,
+                      size: 16,
+                    ),
                 ],
               ),
               const SizedBox(height: 4),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.blue[50],
+                  color: colorScheme.secondary.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   '$deptIcon $department',
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: Colors.blue[900],
+                  style: textTheme.labelSmall?.copyWith(
+                    color: colorScheme.secondary,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -205,14 +230,10 @@ class _PostCardState extends State<PostCard> {
           children: [
             Text(
               _formatTimestamp(timestamp),
-              style: const TextStyle(
-                fontSize: 11,
-                color: Colors.grey,
-                fontWeight: FontWeight.w500,
-              ),
+              style: textTheme.labelSmall?.copyWith(color: Colors.grey[600]),
             ),
             IconButton(
-              icon: const Icon(Icons.more_vert, color: Colors.black45),
+              icon: Icon(Icons.more_vert, color: Colors.grey[400]),
               splashRadius: 20,
               onPressed: () {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -226,7 +247,11 @@ class _PostCardState extends State<PostCard> {
     );
   }
 
-  Widget _buildPostText(String content, bool shouldTrimText) {
+  Widget _buildPostText(
+    String content,
+    bool shouldTrimText,
+    TextTheme textTheme,
+  ) {
     _resetTagRecognizers();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -237,11 +262,7 @@ class _PostCardState extends State<PostCard> {
               ? TextOverflow.ellipsis
               : TextOverflow.visible,
           text: TextSpan(
-            style: const TextStyle(
-              color: Colors.black87,
-              fontSize: 15,
-              height: 1.5,
-            ),
+            style: textTheme.bodyLarge?.copyWith(height: 1.5),
             children: _buildBodySpans(content),
           ),
         ),
@@ -249,9 +270,12 @@ class _PostCardState extends State<PostCard> {
           const SizedBox(height: 6),
           GestureDetector(
             onTap: () => setState(() => _isExpanded = true),
-            child: const Text(
+            child: Text(
               'Read More',
-              style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w600),
+              style: textTheme.bodySmall?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: Colors.blue,
+              ),
             ),
           ),
         ],
@@ -370,6 +394,8 @@ class _PostCardState extends State<PostCard> {
     required bool hasLiked,
     required String postId,
     required Map<String, dynamic> data,
+    required TextTheme textTheme,
+    required ColorScheme colorScheme,
   }) {
     final likeLabel = likes.isEmpty ? 'Like' : 'Like (${likes.length})';
 

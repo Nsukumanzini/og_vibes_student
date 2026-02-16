@@ -80,7 +80,6 @@ dependencies:
   intl: ^0.19.0
   timeago: ^3.6.1
   percent_indicator: ^4.2.3
-  zego_uikit_prebuilt_video_conference: ^2.11.0
   syncfusion_flutter_pdfviewer: ^31.1.21
 
 

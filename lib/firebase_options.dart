@@ -64,7 +64,7 @@ class DefaultFirebaseOptions {
     appId: '1:949237855418:android:a9ea44a58349956bfa3e83',
     messagingSenderId: '949237855418',
     projectId: 'og-vibes-1f15c',
-    storageBucket: 'og-vibes-1f15c.appspot.com',
+    storageBucket: 'og-vibes-1f15c.firebasestorage.app',
     databaseURL: 'https://og-vibes-1f15c.firebaseio.com',
   );
 }

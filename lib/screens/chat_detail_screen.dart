@@ -53,7 +53,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      return const VibeScaffold(
+      return VibeScaffold(
         appBar: null,
         body: Center(child: Text('Sign in to chat.')),
       );

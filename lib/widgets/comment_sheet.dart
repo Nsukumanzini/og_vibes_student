@@ -200,7 +200,7 @@ class _CommentSheetState extends State<CommentSheet> {
   Widget _buildCommentsList() {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: _commentsRef
-          .orderBy('likesCount', descending: true)
+          // .orderBy('likesCount', descending: true) // Requires a composite index in Firestore
           .orderBy('createdAt', descending: true)
           .snapshots(),
       builder: (context, snapshot) {

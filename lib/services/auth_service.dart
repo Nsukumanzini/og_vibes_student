@@ -26,6 +26,9 @@ class AuthService {
     required String level,
     required String studentType,
     required String gender,
+    String? timeZoneName,
+    String? timeZoneOffset,
+    String? deviceLocale,
   }) async {
     final credential = await _auth.createUserWithEmailAndPassword(
       email: email.trim(),
@@ -40,7 +43,7 @@ class AuthService {
       );
     }
 
-    await _firestore.collection('users').doc(user.uid).set({
+    final profileData = <String, dynamic>{
       'uid': user.uid,
       'email': email.trim(),
       'name': name.trim(),
@@ -51,7 +54,19 @@ class AuthService {
       'studentType': studentType,
       'gender': gender,
       'createdAt': FieldValue.serverTimestamp(),
-    });
+    };
+
+    if (timeZoneName != null && timeZoneName.isNotEmpty) {
+      profileData['timeZoneName'] = timeZoneName;
+    }
+    if (timeZoneOffset != null && timeZoneOffset.isNotEmpty) {
+      profileData['timeZoneOffset'] = timeZoneOffset;
+    }
+    if (deviceLocale != null && deviceLocale.isNotEmpty) {
+      profileData['deviceLocale'] = deviceLocale;
+    }
+
+    await _firestore.collection('users').doc(user.uid).set(profileData);
 
     await user.sendEmailVerification();
 

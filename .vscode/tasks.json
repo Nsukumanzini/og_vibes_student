@@ -65,6 +65,19 @@
 				"$dart"
 			],
 			"group": "build"
+		},
+		{
+			"label": "Flutter Build APK",
+			"type": "shell",
+			"command": "flutter",
+			"args": [
+				"build",
+				"apk"
+			],
+			"problemMatcher": [
+				"$dart"
+			],
+			"group": "build"
 		}
 	]
 }

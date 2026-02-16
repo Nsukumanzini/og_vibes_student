@@ -59,6 +59,7 @@ class _HelpfulContactsScreenState extends State<HelpfulContactsScreen> {
   Widget build(BuildContext context) {
     return VibeScaffold(
       appBar: AppBar(title: const Text('Smart Support Hub')),
+      drawer: null,
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(

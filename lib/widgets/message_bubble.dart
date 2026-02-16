@@ -32,9 +32,7 @@ class _MessageBubbleState extends State<MessageBubble> {
     final alignment = widget.isMe
         ? Alignment.centerRight
         : Alignment.centerLeft;
-    final background = widget.isMe
-        ? const Color(0xFF2962FF)
-        : const Color(0xFFE0E0E0);
+    final background = widget.isMe ? const Color(0xFF2962FF) : Colors.white;
     final textColor = widget.isMe ? Colors.white : Colors.black87;
 
     return Dismissible(
@@ -68,6 +66,16 @@ class _MessageBubbleState extends State<MessageBubble> {
                     bottomLeft: Radius.circular(widget.isMe ? 18 : 6),
                     bottomRight: Radius.circular(widget.isMe ? 6 : 18),
                   ),
+                  boxShadow: widget.isMe
+                      ? []
+                      : [
+                          BoxShadow(
+                            // ignore: deprecated_member_use
+                            color: Colors.black.withOpacity(0.07),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                 ),
                 child: Column(
                   crossAxisAlignment: widget.isMe
@@ -89,6 +97,29 @@ class _MessageBubbleState extends State<MessageBubble> {
     );
   }
 
+  Widget _buildReadReceipt() {
+    IconData icon;
+    Color color;
+
+    switch (widget.status) {
+      case 'read':
+        icon = Icons.done_all;
+        color = Colors.blueAccent;
+        break;
+      case 'delivered':
+        icon = Icons.done_all;
+        color = Colors.grey;
+        break;
+      case 'sent':
+      default:
+        icon = Icons.done;
+        color = Colors.grey;
+        break;
+    }
+
+    return Icon(icon, size: 18, color: color);
+  }
+
   Widget _buildContent(Color textColor) {
     if (widget.type == 'audio') {
       return Row(
@@ -106,52 +137,32 @@ class _MessageBubbleState extends State<MessageBubble> {
               data: SliderTheme.of(context).copyWith(
                 thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
                 overlayShape: SliderComponentShape.noOverlay,
-                trackHeight: 2.5,
               ),
               child: Slider(
-                min: 0,
-                max: 1,
                 value: _audioProgress,
-                activeColor: textColor,
-                inactiveColor: textColor.withValues(alpha: 0.25),
+                min: 0.0,
+                max: 1.0,
                 onChanged: (value) {
                   setState(() => _audioProgress = value);
                 },
+                activeColor: textColor,
+                // ignore: deprecated_member_use
+                inactiveColor: textColor.withOpacity(0.3),
               ),
             ),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 8),
           Text(
             widget.audioDuration,
-            style: TextStyle(color: textColor, fontSize: 12),
+            style: TextStyle(color: textColor, fontSize: 13),
           ),
         ],
       );
     }
-
+    // Handle text message
     return Text(
       widget.message,
-      style: TextStyle(color: textColor, fontSize: 15),
-    );
-  }
-
-  Widget _buildReadReceipt() {
-    final status = widget.status.toLowerCase();
-    const grey = Color(0xFFB0BEC5);
-    const blue = Color(0xFF40C4FF);
-
-    if (status == 'sent') {
-      return const Icon(Icons.check, size: 14, color: grey);
-    }
-
-    final color = status == 'read' ? blue : grey;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(Icons.check, size: 14, color: color),
-        const SizedBox(width: 2),
-        Icon(Icons.check, size: 14, color: color),
-      ],
+      style: TextStyle(color: textColor, fontSize: 16),
     );
   }
 }

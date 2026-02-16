@@ -206,7 +206,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           .map((color) => color.toARGB32())
           .toList(growable: false);
 
-      await FirebaseFirestore.instance.collection('posts').add({
+      final postData = {
         'text': content,
         'content': content,
         'imageUrl': imageUrl,
@@ -221,19 +221,21 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         'authorAvatar': _isAnonymous ? null : avatar,
         'createdAt': FieldValue.serverTimestamp(),
         'campus': campusValue,
-      });
+      };
 
+      // Write to Firestore first, then pop if successful
+      await FirebaseFirestore.instance.collection('posts').add(postData);
       if (!mounted) return;
+      setState(() => _isPosting = false);
       Navigator.of(context).pop();
     } catch (error) {
+      // Handle errors during preparation (image upload, user data fetch, Firestore write)
       if (!mounted) return;
+      debugPrint('Error preparing vibe: $error');
+      setState(() => _isPosting = false);
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Failed to share vibe: $error')));
-    } finally {
-      if (mounted) {
-        setState(() => _isPosting = false);
-      }
     }
   }
 

@@ -99,18 +99,25 @@ class _StudyScreenState extends State<StudyScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.black26,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
         children: const [
-          Icon(Icons.timer_outlined, color: Colors.amberAccent, size: 32),
+          Icon(Icons.timer_outlined, color: Color(0xFFFF9800), size: 32),
           SizedBox(width: 16),
           Expanded(
             child: Text(
               '12 Days until Exams Start',
               style: TextStyle(
-                color: Colors.white,
+                color: Color(0xFF0D47A1), // Navy Blue
                 fontWeight: FontWeight.w700,
                 fontSize: 16,
               ),
@@ -122,25 +129,26 @@ class _StudyScreenState extends State<StudyScreen> {
   }
 
   Widget _buildUpNextHero(BuildContext context) {
+    // We make this card a solid vibrant blue so the white text pops!
     return ClipRRect(
       borderRadius: BorderRadius.circular(28),
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
+          gradient: const LinearGradient(
             colors: [
-              Colors.white.withValues(alpha: 0.14),
-              Colors.white.withValues(alpha: 0.05),
+              Color(0xFF2962FF), // Electric Blue
+              Color(0xFF448AFF), // Lighter Blue
             ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
           boxShadow: [
             BoxShadow(
-              blurRadius: 30,
-              color: Colors.black.withValues(alpha: 0.2),
+              blurRadius: 20,
+              color: const Color(0xFF2962FF).withValues(alpha: 0.4),
+              offset: const Offset(0, 8),
             ),
           ],
         ),
@@ -148,10 +156,11 @@ class _StudyScreenState extends State<StudyScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Up Next',
+              'UP NEXT',
               style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                color: Colors.white70,
-                letterSpacing: 1.2,
+                color: Colors.white.withValues(alpha: 0.8),
+                letterSpacing: 1.5,
+                fontWeight: FontWeight.bold,
               ),
             ),
             const SizedBox(height: 12),
@@ -159,23 +168,31 @@ class _StudyScreenState extends State<StudyScreen> {
               '14:00 • Mathematics N4',
               style: TextStyle(
                 color: Colors.white,
-                fontSize: 26,
+                fontSize: 24,
                 fontWeight: FontWeight.w700,
               ),
             ),
-            const SizedBox(height: 8),
-            Row(
-              children: const [
-                Icon(
-                  Icons.location_on_outlined,
-                  color: Colors.white70,
-                  size: 18,
-                ),
-                SizedBox(width: 6),
-                Text('Room A22', style: TextStyle(color: Colors.white70)),
-                Spacer(),
-                Icon(Icons.arrow_circle_right_outlined, color: Colors.white70),
-              ],
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: const [
+                  Icon(Icons.location_on, color: Colors.white, size: 16),
+                  SizedBox(width: 6),
+                  Text(
+                    'Room A22',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -184,19 +201,34 @@ class _StudyScreenState extends State<StudyScreen> {
   }
 
   Widget _buildFocusModeTile() {
-    return SwitchListTile.adaptive(
-      value: _isFocusMode,
-      onChanged: _toggleFocusMode,
-      title: const Text(
-        'Focus Mode 🎧',
-        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+          ),
+        ],
       ),
-      subtitle: Text(
-        'Play Lo-Fi & Silence Notifications',
-        style: TextStyle(color: Colors.white70),
+      child: SwitchListTile.adaptive(
+        value: _isFocusMode,
+        onChanged: _toggleFocusMode,
+        title: const Text(
+          'Focus Mode 🎧',
+          style: TextStyle(
+            color: Color(0xFF0D47A1),
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        subtitle: Text(
+          'Play Lo-Fi & Silence Notifications',
+          style: TextStyle(color: Colors.grey[600], fontSize: 13),
+        ),
+        activeTrackColor: const Color(0xFF2962FF), // Electric Blue active state
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       ),
-      activeTrackColor: Colors.greenAccent,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 4),
     );
   }
 
@@ -218,7 +250,7 @@ class _StudyScreenState extends State<StudyScreen> {
       _DashboardTileData(
         title: 'Past Papers',
         icon: Icons.description_outlined,
-        color: const Color(0xFFFFC857),
+        color: const Color(0xFFFF9800), // Adjusted for light mode
         onTap: () => _openPastPapers(context),
       ),
       _DashboardTileData(
@@ -244,6 +276,12 @@ class _StudyScreenState extends State<StudyScreen> {
         icon: Icons.check_box,
         color: const Color(0xFF26C6DA),
         onTap: () => _openChecklist(context),
+      ),
+      _DashboardTileData(
+        title: 'Exam Timetable',
+        icon: Icons.event_note_outlined,
+        color: const Color(0xFF6A5AE0),
+        onTap: () => _openExamTimetable(context),
       ),
     ];
 
@@ -276,17 +314,20 @@ class _StudyScreenState extends State<StudyScreen> {
   Widget _buildFooter() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: const [
+      children: [
         Text(
           'Success is the sum of small efforts.',
-          style: TextStyle(color: Colors.white70, fontStyle: FontStyle.italic),
+          style: TextStyle(
+            color: Colors.grey[600],
+            fontStyle: FontStyle.italic,
+          ),
         ),
-        SizedBox(height: 6),
-        Text(
+        const SizedBox(height: 6),
+        const Text(
           '45 Students studying now.',
           style: TextStyle(
-            color: Color(0xFF4ADE80),
-            fontWeight: FontWeight.w600,
+            color: Color(0xFF2962FF),
+            fontWeight: FontWeight.w700,
           ),
         ),
       ],
@@ -371,6 +412,12 @@ class _StudyScreenState extends State<StudyScreen> {
       context,
     ).push(MaterialPageRoute(builder: (_) => const ChecklistScreen()));
   }
+
+  void _openExamTimetable(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const ExamTimetableSeatPlanScreen()),
+    );
+  }
 }
 
 class _DashboardTileData {
@@ -402,34 +449,46 @@ class _DashboardTile extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(24),
-          color: tile.color.withValues(alpha: tile.enabled ? 0.18 : 0.1),
+          color: Colors.white, // Changed to white for light mode
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
           border: Border.all(
             color: tile.enabled
-                ? tile.color.withValues(alpha: 0.4)
-                : Colors.white12,
+                ? tile.color.withValues(alpha: 0.3)
+                : Colors.grey.shade300,
+            width: 1.5,
           ),
         ),
         padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            CircleAvatar(
-              backgroundColor: tile.color.withValues(alpha: 0.25),
-              child: Icon(tile.icon, color: Colors.white),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: tile.color.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(tile.icon, color: tile.color, size: 24),
             ),
             const Spacer(),
             Text(
               tile.title,
               style: const TextStyle(
-                color: Colors.white,
+                color: Colors.black87, // Dark text
                 fontWeight: FontWeight.w700,
                 fontSize: 16,
               ),
             ),
             const SizedBox(height: 4),
             Text(
-              tile.enabled ? 'Tap to launch' : 'Reconnect to continue',
-              style: const TextStyle(color: Colors.white70, fontSize: 12),
+              tile.enabled ? 'Tap to launch' : 'Offline',
+              style: TextStyle(color: Colors.grey[600], fontSize: 12),
             ),
           ],
         ),

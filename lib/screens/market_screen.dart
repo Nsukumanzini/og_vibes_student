@@ -1,5 +1,6 @@
+// ignore_for_file: deprecated_member_use
+
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
@@ -7,7 +8,6 @@ import 'package:intl/intl.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 import 'package:og_vibes_student/widgets/vibe_scaffold.dart';
-import 'create_product_screen.dart';
 import 'product_details_screen.dart';
 
 class MarketScreen extends StatefulWidget {
@@ -20,137 +20,59 @@ class MarketScreen extends StatefulWidget {
 class _MarketScreenState extends State<MarketScreen> {
   final List<_MarketCategory> _categories = const [
     _MarketCategory('All', Icons.grid_view),
-    _MarketCategory('Textbooks', Icons.menu_book),
-    _MarketCategory('Tech', Icons.laptop),
-    _MarketCategory('Fashion', Icons.checkroom),
-    _MarketCategory('Services', Icons.design_services),
-    _MarketCategory('Free', Icons.volunteer_activism),
+    _MarketCategory('Free', Icons.card_giftcard),
+    _MarketCategory('Books', Icons.menu_book),
+    _MarketCategory('Electronics', Icons.devices_other),
+    _MarketCategory('Clothing', Icons.checkroom),
+    _MarketCategory('Other', Icons.category),
   ];
-  String _selectedCategory = 'All';
-  String? _campus;
-  bool _isLoadingCampus = true;
+
   bool _isSearching = false;
   String _searchText = '';
+  String _selectedCategory = 'All';
+  String? _campus;
+  final bool _isLoadingCampus = false;
   final TextEditingController _searchController = TextEditingController();
-  final NumberFormat _priceFormatter = NumberFormat.currency(
-    locale: 'en_ZA',
-    symbol: 'R',
-  );
-
-  @override
-  void initState() {
-    super.initState();
-    _searchController.addListener(_onSearchChanged);
-    _fetchCampus();
-  }
-
-  @override
-  void dispose() {
-    _searchController.removeListener(_onSearchChanged);
-    _searchController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _fetchCampus() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      setState(() => _isLoadingCampus = false);
-      return;
-    }
-    try {
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
-      final data = doc.data();
-      setState(() {
-        _campus = data?['campus'] as String?;
-        _isLoadingCampus = false;
-      });
-    } catch (_) {
-      setState(() => _isLoadingCampus = false);
-    }
-  }
+  final NumberFormat _priceFormatter = NumberFormat.currency(symbol: 'R');
 
   @override
   Widget build(BuildContext context) {
     return VibeScaffold(
-      appBar: _buildAppBar(),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildSafetyBanner(),
-            const SizedBox(height: 12),
-            _buildCategoryChips(),
-            const SizedBox(height: 12),
-            Expanded(child: _buildProductsGrid()),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const CreateProductScreen()),
-          );
-        },
-        icon: const Icon(Icons.sell),
-        label: const Text('Sell Item'),
-        backgroundColor: const Color(0xFF2962FF),
-      ),
-    );
-  }
-
-  PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      leading: _isSearching
-          ? IconButton(
-              icon: const Icon(Icons.arrow_back),
+      appBar: AppBar(
+        title: const Text('Market'),
+        actions: [
+          if (!_isSearching)
+            IconButton(
+              icon: const Icon(Icons.search),
               onPressed: () {
                 setState(() {
-                  _isSearching = false;
-                  _searchText = '';
-                  _searchController.clear();
+                  _isSearching = true;
                 });
-                FocusScope.of(context).unfocus();
               },
-            )
-          : null,
-      title: _isSearching
-          ? TextField(
+            ),
+        ],
+      ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: TextField(
               controller: _searchController,
-              autofocus: true,
-              cursorColor: Colors.black,
-              textInputAction: TextInputAction.search,
-              style: const TextStyle(color: Colors.black87),
+              onChanged: (_) => _onSearchChanged(),
               decoration: InputDecoration(
-                hintText: 'Search books, tech...',
-                hintStyle: const TextStyle(color: Colors.black54),
-                filled: true,
-                fillColor: const Color(0xFFE0E0E0),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 10,
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
+                hintText: 'Search products...',
+                prefixIcon: const Icon(Icons.search),
+                // Use global InputDecorationTheme
               ),
-            )
-          : const Text('Campus Market'),
-      actions: [
-        if (!_isSearching)
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () {
-              setState(() {
-                _isSearching = true;
-              });
-            },
+            ),
           ),
-      ],
+          _buildSafetyBanner(),
+          const SizedBox(height: 8),
+          _buildCategoryChips(),
+          const SizedBox(height: 8),
+          Expanded(child: _buildProductsGrid()),
+        ],
+      ),
     );
   }
 
@@ -318,11 +240,7 @@ class _MarketScreenState extends State<MarketScreen> {
         clipBehavior: Clip.none,
         children: [
           Card(
-            color: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-            clipBehavior: Clip.antiAlias,
+            // Use global card theme (white, subtle elevation)
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -363,7 +281,7 @@ class _MarketScreenState extends State<MarketScreen> {
                 else
                   Container(
                     height: 140,
-                    color: Colors.white.withValues(alpha: 0.05),
+                    color: Colors.white.withOpacity(0.05),
                     alignment: Alignment.center,
                     child: const Icon(Icons.image_not_supported_outlined),
                   ),
@@ -377,7 +295,7 @@ class _MarketScreenState extends State<MarketScreen> {
                         style: const TextStyle(
                           fontWeight: FontWeight.w700,
                           fontSize: 16,
-                          color: Colors.black87,
+                          color: Color(0xFF0D47A1), // Navy Blue
                         ),
                       ),
                       if (relativeTime != null) ...[
@@ -395,8 +313,10 @@ class _MarketScreenState extends State<MarketScreen> {
                         children: [
                           Text(
                             price <= 0 ? 'FREE' : priceText,
-                            style: const TextStyle(
-                              color: Color(0xFF66FF8F),
+                            style: TextStyle(
+                              color: price <= 0
+                                  ? Color(0xFF00E5FF) // Electric Blue for FREE
+                                  : Color(0xFF66FF8F), // Green for price
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
                             ),
@@ -411,7 +331,7 @@ class _MarketScreenState extends State<MarketScreen> {
                               decoration: BoxDecoration(
                                 color: const Color(
                                   0xFF66FF8F,
-                                ).withValues(alpha: 0.15),
+                                ).withOpacity(0.15),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: const Text(

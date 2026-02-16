@@ -7,144 +7,139 @@ import 'screens/splash_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  // ...existing code...
-  runApp(const OgVibesApp());
+  var firebaseReady = false;
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    ).timeout(const Duration(seconds: 10));
+    firebaseReady = true;
+  } catch (e) {
+    // Firebase failed to initialize, continue without it
+    firebaseReady = false;
+  }
+  runApp(OgVibesApp(firebaseReady: firebaseReady));
 }
 
 class OgVibesApp extends StatelessWidget {
-  const OgVibesApp({super.key});
+  const OgVibesApp({super.key, required this.firebaseReady});
+
+  final bool firebaseReady;
 
   @override
   Widget build(BuildContext context) {
-    const electricBlue = Color(0xFF2962FF);
-    const amberGold = Color(0xFFFFD740);
-    const deepPurple = Color(0xFF6200EA);
+    // --- SIGNUP SCREEN PALETTE ---
+    const primaryBlue = Color(0xFF2962FF); // The "Vibe" Blue
+    const accentCyan = Color(0xFF00E5FF); // The Blob/Accent color
+    const navyText = Color(0xFF0D47A1); // Headers
+    const bgTop = Color(0xFFF5F7FA); // Gradient Start
 
     const fontFallback = ['NotoColorEmoji', 'NotoSansSymbols2', 'NotoSans'];
 
     final baseTheme = ThemeData(
       useMaterial3: true,
-      brightness: Brightness.dark,
-      scaffoldBackgroundColor: Colors.transparent,
+      brightness: Brightness.light,
+      scaffoldBackgroundColor: bgTop, // Fallback color
+      primaryColor: primaryBlue,
+
       colorScheme: ColorScheme.fromSeed(
-        seedColor: electricBlue,
-        primary: electricBlue,
-        secondary: amberGold,
-        surface: Colors.white.withValues(alpha: 0.08),
-        brightness: Brightness.dark,
+        seedColor: primaryBlue,
+        primary: primaryBlue,
+        secondary: accentCyan,
+        surface: Colors.white,
+        onSurface: Colors.black87,
       ),
     );
+
+    // --- TYPOGRAPHY ---
+    final textTheme = GoogleFonts.poppinsTextTheme(baseTheme.textTheme)
+        .copyWith(
+          // Match the Signup Headers
+          headlineSmall: GoogleFonts.poppins(
+            color: navyText,
+            fontWeight: FontWeight.w700,
+          ),
+          titleLarge: GoogleFonts.poppins(
+            color: navyText,
+            fontWeight: FontWeight.w600,
+          ),
+        );
 
     TextStyle? addFallback(TextStyle? style) {
       return style?.copyWith(fontFamilyFallback: fontFallback);
     }
 
-    final textTheme = GoogleFonts.poppinsTextTheme(
-      baseTheme.textTheme,
-    ).apply(bodyColor: Colors.white, displayColor: Colors.white);
-
     final fallbackTextTheme = textTheme.copyWith(
       displayLarge: addFallback(textTheme.displayLarge),
-      displayMedium: addFallback(textTheme.displayMedium),
-      displaySmall: addFallback(textTheme.displaySmall),
-      headlineLarge: addFallback(textTheme.headlineLarge),
-      headlineMedium: addFallback(textTheme.headlineMedium),
-      headlineSmall: addFallback(textTheme.headlineSmall),
-      titleLarge: addFallback(textTheme.titleLarge),
-      titleMedium: addFallback(textTheme.titleMedium),
-      titleSmall: addFallback(textTheme.titleSmall),
       bodyLarge: addFallback(textTheme.bodyLarge),
       bodyMedium: addFallback(textTheme.bodyMedium),
-      bodySmall: addFallback(textTheme.bodySmall),
-      labelLarge: addFallback(textTheme.labelLarge),
-      labelMedium: addFallback(textTheme.labelMedium),
-      labelSmall: addFallback(textTheme.labelSmall),
     );
 
     final themed = baseTheme.copyWith(
-      colorScheme: baseTheme.colorScheme.copyWith(secondary: deepPurple),
       textTheme: fallbackTextTheme,
-      appBarTheme: const AppBarTheme(
+
+      // 1. APP BAR
+      appBarTheme: AppBarTheme(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        titleTextStyle: TextStyle(
-          color: Colors.white,
+        centerTitle: true,
+        iconTheme: IconThemeData(
+          color: Colors.grey[800],
+        ), // Back buttons are dark grey
+        titleTextStyle: GoogleFonts.poppins(
+          color: navyText,
           fontWeight: FontWeight.bold,
           fontSize: 20,
         ),
-        iconTheme: IconThemeData(color: Colors.white),
-        foregroundColor: Colors.white,
-        centerTitle: true,
       ),
-      cardTheme: CardThemeData(
-        color: Colors.white.withValues(alpha: 0.1),
-        elevation: 0,
-        shadowColor: Colors.black.withValues(alpha: 0.25),
-        surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
-          side: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
-        ),
-      ),
+
+      // 2. INPUT FIELDS (Match Signup Exactly)
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: const Color(0xFFE0E0E0),
+        fillColor: Colors.grey[50], // The specific off-white from Signup
         contentPadding: const EdgeInsets.symmetric(
-          vertical: 16,
+          vertical: 20,
           horizontal: 20,
         ),
-        labelStyle: const TextStyle(color: Colors.black87),
-        hintStyle: const TextStyle(color: Colors.black54),
+        labelStyle: TextStyle(color: Colors.grey[600]),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
-          borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.2)),
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none, // Default is clean
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
-          borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.2)),
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: Colors.grey.shade200),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
-          borderSide: const BorderSide(color: electricBlue, width: 1.6),
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: primaryBlue, width: 1.5),
         ),
+        prefixIconColor: Colors.grey[600],
       ),
+
+      // 3. BUTTONS (Rounded & Shadowed)
       elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ButtonStyle(
-          backgroundColor: WidgetStateProperty.all(const Color(0xFFE0E0E0)),
-          foregroundColor: WidgetStateProperty.all(Colors.black),
-          textStyle: WidgetStateProperty.all(
-            const TextStyle(fontWeight: FontWeight.bold),
-          ),
-          padding: WidgetStateProperty.all(
-            const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
-          ),
-          shape: WidgetStateProperty.all(
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-          elevation: WidgetStateProperty.all(0),
-        ),
-      ),
-      outlinedButtonTheme: OutlinedButtonThemeData(
-        style: OutlinedButton.styleFrom(
-          side: const BorderSide(color: Color(0xFFE0E0E0), width: 2),
-          foregroundColor: const Color(0xFFE0E0E0),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: primaryBlue,
+          foregroundColor: Colors.white,
+          elevation: 8,
+          shadowColor: primaryBlue.withValues(alpha: 0.4),
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
-          textStyle: const TextStyle(fontWeight: FontWeight.w600),
+          textStyle: GoogleFonts.poppins(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(16),
           ),
         ),
       ),
-      textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(foregroundColor: Colors.white70),
-      ),
-      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-        backgroundColor: Color(0xFF0B1A3C),
-        selectedItemColor: electricBlue,
-        unselectedItemColor: Colors.white70,
-        type: BottomNavigationBarType.fixed,
-        showUnselectedLabels: true,
+
+      // 4. CARDS
+      cardTheme: CardThemeData(
+        color: Colors.white,
+        elevation: 4,
+        shadowColor: Colors.black.withValues(alpha: 0.05), // Very subtle shadow
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       ),
     );
 
@@ -152,7 +147,16 @@ class OgVibesApp extends StatelessWidget {
       title: 'OG Vibes',
       debugShowCheckedModeBanner: false,
       theme: themed,
-      home: const SplashScreen(),
+      home: SplashScreen(firebaseReady: firebaseReady),
+      builder: (context, child) {
+        // Error boundary wrapper
+        return MediaQuery(
+          data: MediaQuery.of(
+            context,
+          ).copyWith(textScaler: TextScaler.linear(1.0)),
+          child: child ?? const SizedBox(),
+        );
+      },
     );
   }
 }

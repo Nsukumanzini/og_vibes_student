@@ -55,7 +55,7 @@ class _LiftClubScreenState extends State<LiftClubScreen> {
             ),
           ],
         ),
-        body: TabBarView(children: [_buildFindTab(), _buildOfferTab()]),
+        body: TabBarView(children: [_buildFindTab(), _buildOfferTab()]), bottomNavigationBar: null,
       ),
     );
   }

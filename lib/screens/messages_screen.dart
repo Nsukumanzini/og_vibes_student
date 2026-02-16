@@ -32,106 +32,112 @@ class MessagesScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: chatStream,
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Text('Unable to load chats: ${snapshot.error}'),
-              ),
-            );
-          }
-
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          final docs = snapshot.data?.docs ?? [];
-          if (docs.isEmpty) {
-            return _buildEmptyState(context);
-          }
-
-          return ListView.separated(
-            padding: const EdgeInsets.only(bottom: 96),
-            itemCount: docs.length,
-            separatorBuilder: (context, index) => const Divider(height: 0),
-            itemBuilder: (context, index) {
-              final chatDoc = docs[index];
-              final data = chatDoc.data();
-              final chatName = (data['name'] as String?)?.trim();
-              final lastMessage = data['lastMessage'] as Map<String, dynamic>?;
-              final avatarUrl = (data['avatarUrl'] as String?)?.trim();
-              final isOnline = data['isOnline'] == true;
-              final subtitle = _buildSubtitle(lastMessage);
-              final timestamp = _resolveTimestamp(lastMessage);
-              final isRead = _hasRead(lastMessage, user.uid);
-
-              return ListTile(
-                onTap: () => _openChat(context, chatDoc.id, chatName),
-                leading: Stack(
-                  children: [
-                    CircleAvatar(
-                      radius: 24,
-                      backgroundColor: const Color(
-                        0xFF2962FF,
-                      ).withValues(alpha: 0.15),
-                      backgroundImage: avatarUrl != null && avatarUrl.isNotEmpty
-                          ? NetworkImage(avatarUrl)
-                          : null,
-                      child: avatarUrl == null || avatarUrl.isEmpty
-                          ? Text(
-                              _resolveInitial(chatName),
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            )
-                          : null,
-                    ),
-                    if (isOnline)
-                      Positioned(
-                        right: 2,
-                        bottom: 2,
-                        child: Container(
-                          width: 12,
-                          height: 12,
-                          decoration: BoxDecoration(
-                            color: Colors.greenAccent,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 2),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                title: Text(chatName ?? 'Unnamed chat'),
-                subtitle: Text(
-                  subtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: Colors.white70),
-                ),
-                trailing: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      timestamp ?? 'â€”',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                    if (isRead)
-                      const Icon(
-                        Icons.done_all,
-                        color: Color(0xFF448AFF),
-                        size: 18,
-                      ),
-                  ],
+      body: Container(
+        color: Colors.transparent,
+        child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          stream: chatStream,
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text('Unable to load chats: ${snapshot.error}'),
                 ),
               );
-            },
-          );
-        },
+            }
+
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            final docs = snapshot.data?.docs ?? [];
+            if (docs.isEmpty) {
+              return _buildEmptyState(context);
+            }
+
+            return ListView.separated(
+              padding: const EdgeInsets.only(bottom: 96),
+              itemCount: docs.length,
+              separatorBuilder: (context, index) => const Divider(height: 0),
+              itemBuilder: (context, index) {
+                final chatDoc = docs[index];
+                final data = chatDoc.data();
+                final chatName = (data['name'] as String?)?.trim();
+                final lastMessage =
+                    data['lastMessage'] as Map<String, dynamic>?;
+                final avatarUrl = (data['avatarUrl'] as String?)?.trim();
+                final isOnline = data['isOnline'] == true;
+                final subtitle = _buildSubtitle(lastMessage);
+                final timestamp = _resolveTimestamp(lastMessage);
+                final isRead = _hasRead(lastMessage, user.uid);
+
+                return ListTile(
+                  onTap: () => _openChat(context, chatDoc.id, chatName),
+                  leading: Stack(
+                    children: [
+                      CircleAvatar(
+                        radius: 24,
+                        backgroundColor: const Color(
+                          0xFF2962FF,
+                          // ignore: deprecated_member_use
+                        ).withOpacity(0.15),
+                        backgroundImage:
+                            avatarUrl != null && avatarUrl.isNotEmpty
+                            ? NetworkImage(avatarUrl)
+                            : null,
+                        child: avatarUrl == null || avatarUrl.isEmpty
+                            ? Text(
+                                _resolveInitial(chatName),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              )
+                            : null,
+                      ),
+                      if (isOnline)
+                        Positioned(
+                          right: 2,
+                          bottom: 2,
+                          child: Container(
+                            width: 12,
+                            height: 12,
+                            decoration: BoxDecoration(
+                              color: Colors.greenAccent,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  title: Text(chatName ?? 'Unnamed chat'),
+                  subtitle: Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Colors.black54),
+                  ),
+                  trailing: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        timestamp ?? '—',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      if (isRead)
+                        const Icon(
+                          Icons.done_all,
+                          color: Color(0xFF448AFF),
+                          size: 18,
+                        ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        ),
       ),
     );
   }

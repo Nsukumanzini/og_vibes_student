@@ -52,6 +52,7 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
       ),
+      drawer: null,
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
