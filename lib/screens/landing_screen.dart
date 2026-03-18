@@ -2,7 +2,9 @@ import 'dart:async';
 import 'dart:math';
 import 'dart:ui';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:og_vibes_student/screens/home_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'login_screen.dart';
@@ -246,6 +248,40 @@ class _LandingScreenState extends State<LandingScreen>
             },
             icon: const Icon(Icons.person_add_alt_1),
             label: const Text('Create Account'),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              textStyle: const TextStyle(fontWeight: FontWeight.w600),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: () async {
+              try {
+                final credential = await FirebaseAuth.instance.signInAnonymously();
+                final user = credential.user;
+                if (user != null && mounted) {
+                  // ignore: use_build_context_synchronously
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(builder: (_) => const HomeScreen()),
+                  );
+                }
+              } on FirebaseAuthException catch (e) {
+                if (mounted) {
+                  // ignore: use_build_context_synchronously
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(e.message ?? 'Guest login failed')),
+                  );
+                }
+              }
+            },
+            icon: const Icon(Icons.person_outline),
+            label: const Text('Continue as Guest'),
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 16),
               textStyle: const TextStyle(fontWeight: FontWeight.w600),

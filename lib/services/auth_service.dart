@@ -28,7 +28,7 @@ class AuthService {
     required String gender,
     String? timeZoneName,
     String? timeZoneOffset,
-    String? deviceLocale,
+    String? deviceLocale, required String phone,
   }) async {
     final credential = await _auth.createUserWithEmailAndPassword(
       email: email.trim(),

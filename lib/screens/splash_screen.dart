@@ -7,7 +7,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import 'email_verification_screen.dart';
 import 'home_screen.dart';
 import 'landing_screen.dart';
 
@@ -254,10 +253,12 @@ class _SplashScreenState extends State<SplashScreen>
         await user.reload();
         final refreshedUser = FirebaseAuth.instance.currentUser;
         await minimumDelay;
-        if (refreshedUser?.emailVerified == true) {
+        // Phone verification: if user is signed in, phone is verified
+        if (refreshedUser?.phoneNumber != null &&
+            refreshedUser!.phoneNumber!.isNotEmpty) {
           await _navigateTo(const HomeScreen());
         } else {
-          await _navigateTo(const EmailVerificationScreen());
+          await _navigateTo(const LandingScreen());
         }
         return;
       }

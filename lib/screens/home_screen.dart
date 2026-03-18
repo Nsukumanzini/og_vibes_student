@@ -776,7 +776,7 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             // Custom illustration (replace with your asset path)
             Image.asset(
-              'assets/images/empty_feed_illustration.png',
+              'assets/images/background.png',
               height: 120,
               errorBuilder: (c, e, s) => Icon(
                 Icons.sailing_outlined,

@@ -25,7 +25,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   bool _showPoll = false;
   bool _isPosting = false;
   Uint8List? _imageBytes;
-  String? _imageName;
+  String? _imageUrl;
   MoodOption? _selectedMood;
 
   String? _userName;
@@ -113,9 +113,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     } catch (error) {
       setState(() => _isProfileLoading = false);
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to load profile: $error')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to load profile: just{$error}')),
+      );
     }
   }
 
@@ -127,9 +127,46 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     if (file == null) return;
     final bytes = await file.readAsBytes();
     setState(() {
-      _imageBytes = bytes;
-      _imageName = file.name;
+      _imageBytes = null;
+      _imageUrl = null;
     });
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You must be signed in to upload images.'),
+        ),
+      );
+      return;
+    }
+    try {
+      final ref = FirebaseStorage.instance.ref(
+        'posts/${user.uid}/${DateTime.now().millisecondsSinceEpoch}_${file.name}',
+      );
+      await ref.putData(bytes, SettableMetadata(contentType: 'image/jpeg'));
+      final url = await ref.getDownloadURL();
+      setState(() {
+        _imageBytes = bytes;
+        _imageUrl = url;
+      });
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Image uploaded successfully!')),
+      );
+    } catch (e) {
+      setState(() {
+        _imageBytes = null;
+        _imageUrl = null;
+      });
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(
+        // ignore: use_build_context_synchronously
+        context,
+      ).showSnackBar(
+        SnackBar(content: Text('Failed to upload image: just{$e}')),
+      );
+    }
   }
 
   Future<void> _postVibe() async {
@@ -139,7 +176,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         (_optionAController.text.trim().isNotEmpty ||
             _optionBController.text.trim().isNotEmpty);
 
-    if (content.isEmpty && _imageBytes == null && !hasPoll) {
+    if (content.isEmpty && _imageUrl == null && !hasPoll) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Share a vibe, add an image, or create a poll.'),
@@ -180,18 +217,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       final displayName = data['name'] as String? ?? _userName ?? 'OG Vibester';
       final avatar = data['avatarUrl'] as String? ?? _userAvatar;
 
-      String? imageUrl;
-      if (_imageBytes != null) {
-        final ref = FirebaseStorage.instance.ref(
-          'posts/${user.uid}/${DateTime.now().millisecondsSinceEpoch}_${_imageName ?? 'upload'}.jpg',
-        );
-        await ref.putData(
-          _imageBytes!,
-          SettableMetadata(contentType: 'image/jpeg'),
-        );
-        imageUrl = await ref.getDownloadURL();
-      }
-
       Map<String, dynamic>? poll;
       if (hasPoll) {
         poll = {
@@ -209,7 +234,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       final postData = {
         'text': content,
         'content': content,
-        'imageUrl': imageUrl,
+        'imageUrl': _imageUrl,
         'isAnonymous': _isAnonymous,
         'backgroundColor': backgroundValues == null || backgroundValues.isEmpty
             ? null
@@ -229,13 +254,13 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       setState(() => _isPosting = false);
       Navigator.of(context).pop();
     } catch (error) {
-      // Handle errors during preparation (image upload, user data fetch, Firestore write)
+      // Handle errors during preparation (user data fetch, Firestore write)
       if (!mounted) return;
-      debugPrint('Error preparing vibe: $error');
+      debugPrint('Error preparing vibe: just{$error}');
       setState(() => _isPosting = false);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to share vibe: $error')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to share vibe: just{$error}')),
+      );
     }
   }
 
@@ -297,7 +322,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                       _glassCard(child: _buildPollSection()),
                       const SizedBox(height: 20),
                       _glassCard(child: _buildImagePicker()),
-                      if (_imageBytes != null) ...[
+                      if (_imageBytes != null && _imageUrl != null) ...[
                         const SizedBox(height: 12),
                         ClipRRect(
                           borderRadius: BorderRadius.circular(20),

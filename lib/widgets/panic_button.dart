@@ -91,18 +91,21 @@ class _PanicButtonState extends State<PanicButton>
   }
 
   void _onHoldStart(LongPressStartDetails details) {
+    debugPrint('[PANIC] Hold started');
     _panicTriggered = false;
     _progressController.forward(from: 0);
     _startHeartbeatHaptics();
     unawaited(_requestPhonePermission());
     _holdTimer?.cancel();
     _holdTimer = Timer(_activationDuration, () async {
+      debugPrint('[PANIC] Hold duration met, activating panic mode');
       _panicTriggered = true;
       await _activatePanicMode();
     });
   }
 
   void _resetHoldState([dynamic _]) {
+    debugPrint('[PANIC] Hold reset/cancelled');
     if (_panicTriggered) return;
     _progressController.reverse(from: _progressController.value);
     _stopHeartbeat();
@@ -137,11 +140,13 @@ class _PanicButtonState extends State<PanicButton>
   }
 
   Future<void> _activatePanicMode() async {
+    debugPrint('[PANIC] Activating panic mode...');
     _stopHeartbeat();
     _insertStealthOverlay();
 
     try {
       final permissionsGranted = await _ensurePermissions();
+      debugPrint('[PANIC] Permissions granted: $permissionsGranted');
       if (!permissionsGranted) {
         _showMessage('Permissions denied. Panic cancelled.');
         _removeStealthOverlay();
@@ -149,21 +154,28 @@ class _PanicButtonState extends State<PanicButton>
         return;
       }
 
-      await FlutterPhoneDirectCaller.callNumber('10111');
+      debugPrint('[PANIC] Calling 10111...');
+      final callResult = await FlutterPhoneDirectCaller.callNumber('10111');
+      debugPrint('[PANIC] Call result: $callResult');
 
       final position = await _getCurrentPosition();
+      debugPrint('[PANIC] Got position: $position');
       final mapsLink = position != null
           ? 'https://www.google.com/maps/search/?api=1&query='
                 '${position.latitude},${position.longitude}'
           : 'Location unavailable';
 
       final profile = await _resolveUserProfile();
-      await _createAdminAlert(profile, mapsLink);
+      debugPrint(
+        '[PANIC] User profile: uid=${profile.uid}, name=${profile.name}, campus=${profile.campus}',
+      );
+      final alertRef = await _createAdminAlert(profile, mapsLink);
+      debugPrint('[PANIC] Alert created: ${alertRef.id}');
 
       _showMessage('Panic alert sent to campus safety.');
     } catch (error, stackTrace) {
-      debugPrint('Panic activation failed: $error');
-      debugPrint('$stackTrace');
+      debugPrint('[PANIC] Panic activation failed: $error');
+      debugPrint('[PANIC] $stackTrace');
       _showMessage('Unable to send panic alert.');
     } finally {
       _removeStealthOverlay();
