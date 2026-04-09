@@ -1,23 +1,29 @@
+// ignore_for_file: unused_element_parameter
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:og_vibes_student/screens/home/widgets/home_bottom_navigation_bar.dart';
-import 'package:og_vibes_student/widgets/app_drawer.dart';
-import 'package:og_vibes_student/widgets/panic_button.dart';
-import 'package:og_vibes_student/widgets/vibe_scaffold.dart';
 import 'package:shimmer/shimmer.dart';
 
-import '../widgets/post_card.dart';
+import '../../widgets/app_drawer.dart';
+import '../../widgets/panic_button.dart';
+import '../../widgets/post_card.dart';
+import '../../widgets/vibe_scaffold.dart';
+import '../../utils/dialog_helpers.dart';
 import 'announcements_screen.dart';
 import 'campus_hub_screens.dart';
 import 'create_post_screen.dart';
-import 'market_screen.dart';
 import 'messages_screen.dart';
 import 'study_screen.dart';
-import 'friend_requests_screen.dart';
-import 'my_campus_friends_screen.dart';
-import 'campus_events_screen.dart';
+import 'accredited_accommodation_screen.dart';
+import 'cafeteria_screen.dart';
+import 'document_wallet_screen.dart';
+import 'lost_and_found_screen.dart';
+import 'tutor_directory_screen.dart';
+import 'whistleblower_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -28,19 +34,35 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   int _currentTab = 0;
-
+  
+  // Pagination & Scroll State
   late final ScrollController _scrollController;
+  int _postLimit = 10; // Start with only 10 posts to save Firebase costs
+  bool _isFetchingMore = false;
   bool _isFabVisible = true;
+  bool _showBackToTopPill = false;
 
-  bool _showNewVibesPill = false;
+  late Stream<QuerySnapshot<Map<String, dynamic>>> _postsStream;
 
   @override
   void initState() {
     super.initState();
     _scrollController = ScrollController();
     _scrollController.addListener(_handleScroll);
+    _initPostsStream();
+  }
+
+  void _initPostsStream() {
+    // Soft Delete: Only show posts where isDeleted == false
+    _postsStream = _firestore
+        .collection('posts')
+        .where('isDeleted', isEqualTo: false)
+        .orderBy('createdAt', descending: true)
+        .limit(_postLimit)
+        .snapshots(includeMetadataChanges: true); // Enables smooth offline caching
   }
 
   @override
@@ -50,18 +72,56 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  Stream<QuerySnapshot<Map<String, dynamic>>> _postsStream() {
-    Query<Map<String, dynamic>> query = _firestore
-        .collection('posts')
-        .orderBy('createdAt', descending: true)
-        .limit(120);
-
-    return query.snapshots();
+  Future<void> _refreshFeed() async {
+    setState(() {
+      _postLimit = 10;
+      _initPostsStream();
+    });
+    await Future<void>.delayed(const Duration(milliseconds: 500));
   }
 
-  Future<void> _refreshFeed() async {
-    setState(() {});
-    await Future<void>.delayed(const Duration(milliseconds: 350));
+  void _handleScroll() {
+    if (!_scrollController.hasClients) return;
+    
+    // 1. Handle FAB and Back to Top Pill visibility
+    final direction = _scrollController.position.userScrollDirection;
+    if (direction == ScrollDirection.reverse && _isFabVisible) {
+      setState(() => _isFabVisible = false);
+    } else if (direction == ScrollDirection.forward && !_isFabVisible) {
+      setState(() => _isFabVisible = true);
+    }
+
+    final shouldShowPill = _scrollController.offset > 300;
+    if (shouldShowPill != _showBackToTopPill) {
+      setState(() => _showBackToTopPill = shouldShowPill);
+    }
+
+    // 2. Handle Pagination (Load more when reaching the bottom)
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200 && !_isFetchingMore) {
+      setState(() {
+        _isFetchingMore = true;
+        _postLimit += 10; // Load 10 more posts
+        _initPostsStream();
+        _isFetchingMore = false;
+      });
+    }
+  }
+
+  void _scrollToTop() {
+    if (!_scrollController.hasClients) return;
+    _scrollController.animateTo(
+      0,
+      duration: const Duration(milliseconds: 600),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  String _getDynamicGreeting() {
+    final hour = DateTime.now().hour;
+    final name = _auth.currentUser?.displayName?.split(' ').first ?? 'Viber';
+    if (hour < 12) return 'Good morning, $name ☀️';
+    if (hour < 17) return 'Good afternoon, $name 🌤️';
+    return 'Good evening, $name 🌙';
   }
 
   @override
@@ -85,28 +145,38 @@ class _HomeScreenState extends State<HomeScreen> {
               const MessagesScreen(),
             ],
           ),
-          const Positioned(bottom: 100, right: 20, child: PanicButton()),
+          // Locked Panic Button for MVP testing
+          Positioned(
+            bottom: 100, 
+            right: 20, 
+            child: GestureDetector(
+              onLongPress: () => showComingSoonDialog(context, 'SOS Panic Button'),
+              onTap: () => showComingSoonDialog(context, 'SOS Panic Button'),
+              child: const PanicButton(),
+            ),
+          ),
         ],
       ),
     );
   }
 
+  // ================= FEED TAB =================
   Widget _buildFeedTab() {
     return Stack(
       fit: StackFit.expand,
       children: [
         RefreshIndicator(
           color: Theme.of(context).primaryColor,
-          backgroundColor: Colors.transparent,
+          backgroundColor: Colors.white,
           onRefresh: _refreshFeed,
           child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-            stream: _postsStream(),
+            stream: _postsStream,
             builder: (context, snapshot) {
               final slivers = <Widget>[_buildFeedSliverAppBar()];
 
               if (snapshot.hasError) {
                 slivers.add(_buildErrorSliver(snapshot.error));
-              } else if (snapshot.connectionState == ConnectionState.waiting) {
+              } else if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
                 slivers.add(_buildLoadingSliver());
               } else {
                 final docs = snapshot.data?.docs ?? [];
@@ -114,19 +184,23 @@ class _HomeScreenState extends State<HomeScreen> {
                   slivers.add(_buildEmptyStateSliver());
                 } else {
                   slivers.add(_buildPostsSliver(docs));
+                  if (_isFetchingMore) {
+                    slivers.add(const SliverToBoxAdapter(
+                      child: Padding(
+                        padding: EdgeInsets.all(16.0),
+                        child: Center(child: CircularProgressIndicator()),
+                      ),
+                    ));
+                  }
                 }
               }
 
-              slivers.add(
-                const SliverToBoxAdapter(child: SizedBox(height: 120)),
-              );
+              slivers.add(const SliverToBoxAdapter(child: SizedBox(height: 120)));
 
               return AnimationLimiter(
                 child: CustomScrollView(
                   controller: _scrollController,
-                  physics: const BouncingScrollPhysics(
-                    parent: AlwaysScrollableScrollPhysics(),
-                  ),
+                  physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
                   slivers: slivers,
                 ),
               );
@@ -139,79 +213,26 @@ class _HomeScreenState extends State<HomeScreen> {
           right: 0,
           child: Center(
             child: AnimatedOpacity(
-              opacity: _showNewVibesPill ? 1.0 : 0.0,
+              opacity: _showBackToTopPill ? 1.0 : 0.0,
               duration: const Duration(milliseconds: 300),
               child: IgnorePointer(
-                ignoring: !_showNewVibesPill,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 400),
-                  curve: Curves.bounceOut,
-                  transform:
-                      _showNewVibesPill
-                            ? Matrix4.identity()
-                            : Matrix4.translationValues(0.0, -10.0, 0.0)
-                        ..scale(1.1),
-                  child: Material(
-                    elevation: 5,
-                    borderRadius: BorderRadius.circular(32),
-                    color: Colors.transparent,
-                    child: Chip(
-                      avatar: const Icon(Icons.arrow_upward, size: 16),
-                      label: const Text('↑ New Vibes'),
-                      backgroundColor: Theme.of(context).colorScheme.surface,
-                      onDeleted: _scrollToTop,
-                    ),
+                ignoring: !_showBackToTopPill,
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.arrow_upward, size: 16),
+                  label: const Text('Back to Top'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).colorScheme.surface,
+                    foregroundColor: Theme.of(context).primaryColor,
+                    elevation: 4,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                   ),
+                  onPressed: _scrollToTop,
                 ),
               ),
             ),
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildCampusHubTab() {
-    return SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 32, 20, 120),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Campus Hub',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
-                ),
-                Text(
-                  'Powered by OG Technologies',
-                  style: TextStyle(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.onSurface.withOpacity(0.7),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Quick access to rides, events, rewards, and more.',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
-              ),
-            ),
-            const SizedBox(height: 20),
-            _buildSectionHeader('Services & Support'),
-            _buildHubGrid(_getServiceCards()),
-          ],
-        ),
-      ),
     );
   }
 
@@ -226,33 +247,25 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 Builder(
                   builder: (context) => IconButton(
-                    icon: Icon(
-                      Icons.menu,
-                      color: Theme.of(context).colorScheme.onSurface,
-                    ),
-                    tooltip: 'Open menu',
+                    icon: Icon(Icons.menu, color: Theme.of(context).colorScheme.onSurface),
                     onPressed: () => Scaffold.of(context).openDrawer(),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Center(
-                    child: Image.asset('assets/images/gs_logo.JPG', height: 40),
-                  ),
+                  child: Center(child: Image.asset('assets/images/gs_logo.JPG', height: 40)),
                 ),
                 const SizedBox(width: 48),
               ],
             ),
             const SizedBox(height: 16),
             Text(
-              'Hey, Viber',
-              style: Theme.of(
-                context,
-              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
+              _getDynamicGreeting(),
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 4),
             Text(
-              'Vibes around Campus',
+              'See what is happening on campus right now.',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
               ),
@@ -264,202 +277,68 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // ================= CAMPUS HUB TAB =================
+  Widget _buildCampusHubTab() {
+    return CustomScrollView(
+      physics: const BouncingScrollPhysics(),
+      slivers: [
+        SliverAppBar(
+          pinned: true,
+          expandedHeight: 100.0,
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          flexibleSpace: FlexibleSpaceBar(
+            titlePadding: const EdgeInsets.only(left: 20, bottom: 16),
+            title: Text(
+              'Campus Hub',
+              style: TextStyle(
+                fontWeight: FontWeight.w800,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+            ),
+          ),
+        ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Powered by OG Technologies',
+                  style: TextStyle(
+                    color: Theme.of(context).primaryColor,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                
+                _buildSectionHeader('Essential Tools'),
+                _buildHubGrid(_getEssentialCards()),
+                const SizedBox(height: 32),
+                
+                _buildSectionHeader('Student Life'),
+                _buildHubGrid(_getStudentLifeCards()),
+                const SizedBox(height: 32),
+
+                _buildSectionHeader('Services & Support'),
+                _buildHubGrid(_getServiceCards()),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildSectionHeader(String title) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12, left: 4),
+      padding: const EdgeInsets.only(bottom: 16, left: 4),
       child: Text(
         title,
         style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
       ),
     );
-  }
-
-  List<_HubCardInfo> _getEssentialCards() {
-    return [
-      _HubCardInfo(
-        title: 'Digital ID',
-        icon: Icons.badge,
-        color: Colors.blueAccent,
-        onTap: (context) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Digital Student ID coming soon!')),
-          );
-        },
-      ),
-      _HubCardInfo(
-        title: 'My Grades',
-        icon: Icons.school,
-        color: const Color(0xFF2962FF),
-        onTap: (context) {
-          // Navigate to grades or portal
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Grades integration coming soon.')),
-          );
-        },
-      ),
-    ];
-  }
-
-  List<_HubCardInfo> _getStudentLifeCards() {
-    return [
-      _HubCardInfo(
-        title: 'Events',
-        icon: Icons.event,
-        color: Colors.pinkAccent,
-        onTap: (context) {
-          Navigator.of(
-            context,
-          ).push(MaterialPageRoute(builder: (_) => const EventsScreen()));
-        },
-      ),
-      _HubCardInfo(
-        title: 'Clubs & Socs',
-        icon: Icons.groups,
-        color: Colors.purple,
-        onTap: (context) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Clubs directory coming soon.')),
-          );
-        },
-      ),
-      _HubCardInfo(
-        title: 'Vibe Rewards',
-        icon: Icons.redeem,
-        color: Theme.of(context).colorScheme.secondary,
-        onTap: (context) {
-          Navigator.of(
-            context,
-          ).push(MaterialPageRoute(builder: (_) => const RewardsScreen()));
-        },
-      ),
-      _HubCardInfo(
-        title: '👑 Miss & Mr Vibes',
-        icon: Icons.emoji_events,
-        color: Colors.deepPurple,
-        gradientColors: const [Color(0xFF512DA8), Color(0xFFE91E63)],
-        onTap: (context) {
-          Navigator.of(
-            context,
-          ).push(MaterialPageRoute(builder: (_) => const MissMrVibesScreen()));
-        },
-      ),
-      _HubCardInfo(
-        title: '🗳️ SRC Voting',
-        icon: Icons.how_to_vote,
-        color: const Color(0xFF1B5E20),
-        gradientColors: const [Color(0xFF1B5E20), Color(0xFF000000)],
-        onTap: (context) {
-          Navigator.of(
-            context,
-          ).push(MaterialPageRoute(builder: (_) => const SrcVotingScreen()));
-        },
-      ),
-      _HubCardInfo(
-        title: '🧠 Trivia Night',
-        icon: Icons.quiz,
-        color: const Color(0xFFFF9800),
-        gradientColors: const [Color(0xFFFFA726), Color(0xFFFF7043)],
-        onTap: (context) {
-          Navigator.of(
-            context,
-          ).push(MaterialPageRoute(builder: (_) => const TriviaGameScreen()));
-        },
-      ),
-    ];
-  }
-
-  List<_HubCardInfo> _getServiceCards() {
-    return [
-      _HubCardInfo(
-        title: 'Friend Requests',
-        icon: Icons.people_alt,
-        color: Colors.purpleAccent,
-        gradientColors: [Colors.purpleAccent, Colors.deepPurpleAccent],
-        onTap: (context) {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const FriendRequestsScreen()),
-          );
-        },
-      ),
-      _HubCardInfo(
-        title: 'My Campus Friends',
-        icon: Icons.group,
-        color: Colors.blueAccent,
-        gradientColors: [Colors.blueAccent, Colors.lightBlueAccent],
-        onTap: (context) {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const MyCampusFriendsScreen()),
-          );
-        },
-      ),
-      _HubCardInfo(
-        title: 'Campus Events',
-        icon: Icons.celebration,
-        color: Colors.deepOrangeAccent,
-        gradientColors: [Colors.deepOrangeAccent, Colors.orangeAccent],
-        onTap: (context) {
-          Navigator.of(
-            context,
-          ).push(MaterialPageRoute(builder: (_) => const CampusEventsScreen()));
-        },
-      ),
-      // ...existing code...
-      _HubCardInfo(
-        title: 'Marketplace',
-        icon: Icons.store,
-        color: Colors.teal,
-        gradientColors: [Colors.teal, Colors.greenAccent],
-        onTap: (context) {
-          Navigator.of(
-            context,
-          ).push(MaterialPageRoute(builder: (_) => const MarketScreen()));
-        },
-      ),
-      _HubCardInfo(
-        title: 'Lift Club',
-        icon: Icons.directions_car,
-        color: Colors.orange,
-        gradientColors: [Colors.orange, Colors.yellowAccent],
-        onTap: (context) {
-          Navigator.of(
-            context,
-          ).push(MaterialPageRoute(builder: (_) => const LiftClubScreen()));
-        },
-      ),
-      _HubCardInfo(
-        title: 'Accommodation',
-        icon: Icons.home,
-        color: Colors.indigo,
-        gradientColors: [Colors.indigo, Colors.purple],
-        onTap: (context) {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const AccommodationScreen()),
-          );
-        },
-      ),
-      _HubCardInfo(
-        title: 'Career Center',
-        icon: Icons.work,
-        color: Colors.blueGrey,
-        gradientColors: [Colors.blueGrey, Colors.grey],
-        onTap: (context) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Career Center coming soon.')),
-          );
-        },
-      ),
-      _HubCardInfo(
-        title: 'Lost & Found',
-        icon: Icons.travel_explore,
-        color: Colors.cyan,
-        gradientColors: [Colors.cyan, Colors.lightBlueAccent],
-        onTap: (context) {
-          Navigator.of(
-            context,
-          ).push(MaterialPageRoute(builder: (_) => const LostFoundScreen()));
-        },
-      ),
-    ];
   }
 
   Widget _buildHubGrid(List<_HubCardInfo> cards) {
@@ -471,122 +350,83 @@ class _HomeScreenState extends State<HomeScreen> {
         crossAxisCount: 2,
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
-        childAspectRatio: 2.4,
+        childAspectRatio: 2.3,
       ),
       itemBuilder: (context, index) {
         final card = cards[index];
-        final gradientColors = card.gradientColors
-            ?.map((color) => color.withOpacity(0.9))
-            .toList();
-        // Notification badge for Friend Requests
-        bool showBadge = card.title == 'Friend Requests';
-        int badgeCount = showBadge ? 3 : 0; // Example: 3 new requests
+        final gradientColors = card.gradientColors?.map((color) => color.withOpacity(0.9)).toList();
+        
         return Card(
-          color: Colors.white.withOpacity(0.35),
-          elevation: 8,
-          shadowColor: Colors.black.withOpacity(0.12),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
-            side: BorderSide(color: Colors.white.withOpacity(0.18)),
-          ),
+          elevation: 4,
+          shadowColor: card.color.withOpacity(0.3),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           child: InkWell(
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(16),
             onTap: () => card.onTap(context),
-            child: Stack(
-              children: [
-                Container(
-                  decoration: BoxDecoration(
-                    gradient: gradientColors != null
-                        ? LinearGradient(
-                            colors: gradientColors,
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          )
-                        : null,
-                    borderRadius: BorderRadius.circular(18),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.08),
-                        blurRadius: 12,
-                        spreadRadius: 2,
-                      ),
-                    ],
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  child: Row(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: gradientColors != null
+                    ? LinearGradient(colors: gradientColors, begin: Alignment.topLeft, end: Alignment.bottomRight)
+                    : null,
+                color: gradientColors == null ? Colors.white : null,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Stack(
+                children: [
+                  Row(
                     children: [
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: gradientColors != null
-                              ? Colors.white.withOpacity(0.18)
-                              : card.color.withOpacity(0.18),
-                          borderRadius: BorderRadius.circular(12),
+                          color: gradientColors != null ? Colors.white.withOpacity(0.2) : card.color.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(10),
                         ),
-                        child: Icon(card.icon, color: Colors.white, size: 22),
+                        child: Icon(card.icon, color: gradientColors != null ? Colors.white : card.color, size: 20),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 10),
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              card.title,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 14,
-                                color: Colors.white,
-                                height: 1.1,
-                                shadows: [
-                                  Shadow(
-                                    color: Colors.black.withOpacity(0.12),
-                                    blurRadius: 2,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
+                        child: Text(
+                          card.title,
+                          maxLines: 2,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                            color: gradientColors != null ? Colors.white : Colors.black87,
+                          ),
                         ),
                       ),
                     ],
                   ),
-                ),
-                if (showBadge && badgeCount > 0)
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.redAccent,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.15),
-                            blurRadius: 4,
-                          ),
-                        ],
-                      ),
-                      child: Text(
-                        badgeCount.toString(),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
+                  // Live Badge Listener for Friend Requests
+                  if (card.title == 'Friend Requests' && _auth.currentUser != null)
+                    Positioned(
+                      top: 0,
+                      right: 0,
+                      child: StreamBuilder<QuerySnapshot>(
+                        stream: _firestore
+                            .collection('friend_requests')
+                            .where('to', isEqualTo: _auth.currentUser!.uid)
+                            .where('status', isEqualTo: 'pending')
+                            .snapshots(),
+                        builder: (context, snapshot) {
+                          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const SizedBox.shrink();
+                          return Container(
+                            padding: const EdgeInsets.all(5),
+                            decoration: const BoxDecoration(
+                              color: Colors.redAccent,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Text(
+                              '${snapshot.data!.docs.length}',
+                              style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                            ),
+                          );
+                        },
                       ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
         );
@@ -594,16 +434,10 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  SliverList _buildPostsSliver(
-    List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
-  ) {
-    final postCount = docs.length;
+  // ================= FEED HELPERS & BUILDERS =================
+  SliverList _buildPostsSliver(List<QueryDocumentSnapshot<Map<String, dynamic>>> docs) {
     return SliverList(
       delegate: SliverChildBuilderDelegate((context, index) {
-        if (index >= docs.length) {
-          return const SizedBox.shrink();
-        }
-        final doc = docs[index];
         return AnimationConfiguration.staggeredList(
           position: index,
           duration: const Duration(milliseconds: 375),
@@ -611,112 +445,67 @@ class _HomeScreenState extends State<HomeScreen> {
             verticalOffset: 50,
             child: FadeInAnimation(
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                child: PostCard(doc: doc),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: PostCard(doc: docs[index]),
               ),
             ),
           ),
         );
-      }, childCount: postCount),
+      }, childCount: docs.length),
     );
   }
 
-  // ...existing code...
-
-  SliverList _buildLoadingSliver() {
-    return SliverList(
-      delegate: SliverChildBuilderDelegate(
-        (context, index) => _buildShimmerFeedCard(),
-        childCount: 3,
+  SliverFillRemaining _buildEmptyStateSliver() {
+    return SliverFillRemaining(
+      hasScrollBody: false,
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Theme.of(context).primaryColor.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.campaign_outlined, size: 64, color: Theme.of(context).primaryColor),
+            ),
+            const SizedBox(height: 24),
+            Text('Campus is quiet...', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 22, color: Theme.of(context).colorScheme.onSurface)),
+            const SizedBox(height: 8),
+            const Text('Be the first to post a vibe today!', style: TextStyle(color: Colors.black54, fontSize: 16)),
+            const SizedBox(height: 32),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.add),
+              label: const Text('Post a Vibe'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).primaryColor,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              ),
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CreatePostScreen())),
+            ),
+          ],
+        ),
       ),
     );
   }
 
+  SliverList _buildLoadingSliver() {
+    return SliverList(
+      delegate: SliverChildBuilderDelegate((context, index) => _buildShimmerFeedCard(), childCount: 3),
+    );
+  }
+
   Widget _buildShimmerFeedCard() {
-    final baseColor = Colors.grey[300]!;
-    final highlightColor = Colors.grey[100]!;
     return Shimmer.fromColors(
-      baseColor: baseColor,
-      highlightColor: highlightColor,
+      baseColor: Colors.grey[300]!,
+      highlightColor: Colors.grey[100]!,
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.7),
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 12,
-              spreadRadius: 2,
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: baseColor,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Container(
-                    height: 14,
-                    decoration: BoxDecoration(
-                      color: baseColor,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Container(
-                  width: 70,
-                  height: 14,
-                  decoration: BoxDecoration(
-                    color: baseColor,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: List.generate(3, (index) {
-                return Padding(
-                  padding: EdgeInsets.only(bottom: index == 2 ? 0 : 8),
-                  child: Container(
-                    height: 12,
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: baseColor,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                );
-              }),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              height: 180,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: baseColor,
-                borderRadius: BorderRadius.circular(14),
-              ),
-            ),
-          ],
-        ),
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        height: 250,
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18)),
       ),
     );
   }
@@ -728,99 +517,14 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.wifi_off, size: 64, color: Colors.redAccent),
+            const Icon(Icons.wifi_off, size: 64, color: Colors.redAccent),
             const SizedBox(height: 16),
-            Text(
-              'Could not connect to server',
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 18,
-                color: Colors.redAccent,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Failed to load vibes. ${error ?? ''}',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.black54),
-            ),
+            const Text('Could not connect to server', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 18, color: Colors.redAccent)),
             const SizedBox(height: 24),
             ElevatedButton.icon(
               icon: const Icon(Icons.refresh),
               label: const Text('Retry'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.redAccent,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 32,
-                  vertical: 14,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(24),
-                ),
-              ),
               onPressed: _refreshFeed,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  SliverFillRemaining _buildEmptyStateSliver() {
-    return SliverFillRemaining(
-      hasScrollBody: false,
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Custom illustration (replace with your asset path)
-            Image.asset(
-              'assets/images/background.png',
-              height: 120,
-              errorBuilder: (c, e, s) => Icon(
-                Icons.sailing_outlined,
-                size: 64,
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'No vibes yet',
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 22,
-                color: Theme.of(context).colorScheme.onSurface,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Be the first to post!',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurface,
-                fontSize: 16,
-              ),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              icon: const Icon(Icons.add),
-              label: const Text('Post a Vibe'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).primaryColor,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 32,
-                  vertical: 14,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(24),
-                ),
-              ),
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const CreatePostScreen()),
-                );
-              },
             ),
           ],
         ),
@@ -831,61 +535,44 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildPostFab() {
     return AnimatedScale(
       duration: const Duration(milliseconds: 200),
-      curve: Curves.easeInOut,
       scale: _isFabVisible ? 1.0 : 0.0,
-      child: AnimatedRotation(
-        duration: const Duration(milliseconds: 300),
-        turns: _isFabVisible ? 0.02 : 0.0,
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(30),
-            boxShadow: [
-              BoxShadow(
-                color: Theme.of(context).primaryColor.withOpacity(0.6),
-                blurRadius: 20,
-                spreadRadius: 4,
-              ),
-            ],
-          ),
-          child: FloatingActionButton.extended(
-            elevation: 10,
-            backgroundColor: Theme.of(context).primaryColor,
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const CreatePostScreen()),
-              );
-            },
-            icon: const Icon(Icons.add),
-            label: const Text('Post Vibe'),
-          ),
-        ),
+      child: FloatingActionButton.extended(
+        elevation: 6,
+        backgroundColor: Theme.of(context).primaryColor,
+        onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CreatePostScreen())),
+        icon: const Icon(Icons.add, color: Colors.white),
+        label: const Text('Post Vibe', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
       ),
     );
   }
 
-  void _handleScroll() {
-    if (!_scrollController.hasClients) return;
-    final direction = _scrollController.position.userScrollDirection;
-
-    if (direction == ScrollDirection.reverse && _isFabVisible) {
-      setState(() => _isFabVisible = false);
-    } else if (direction == ScrollDirection.forward && !_isFabVisible) {
-      setState(() => _isFabVisible = true);
-    }
-
-    final shouldShowPill = _scrollController.offset > 200;
-    if (shouldShowPill != _showNewVibesPill) {
-      setState(() => _showNewVibesPill = shouldShowPill);
-    }
+  // ================= HUB DATA =================
+  List<_HubCardInfo> _getEssentialCards() {
+    return [
+      _HubCardInfo(title: 'Digital ID', icon: Icons.badge, color: Colors.blueAccent, onTap: (c) => showComingSoonDialog(c, 'Digital ID')),
+      _HubCardInfo(title: 'My Grades', icon: Icons.school, color: const Color(0xFF2962FF), onTap: (c) => showComingSoonDialog(c, 'Grades')),
+    ];
   }
 
-  void _scrollToTop() {
-    if (!_scrollController.hasClients) return;
-    _scrollController.animateTo(
-      0,
-      duration: const Duration(seconds: 1),
-      curve: Curves.easeOut,
-    );
+  List<_HubCardInfo> _getStudentLifeCards() {
+    return [
+      _HubCardInfo(title: 'Events', icon: Icons.event, color: Colors.pinkAccent, onTap: (c) => Navigator.of(c).push(MaterialPageRoute(builder: (_) => const EventsScreen()))),
+      _HubCardInfo(title: 'Clubs & Socs', icon: Icons.groups, color: Colors.purple, onTap: (c) => showComingSoonDialog(c, 'Clubs & Societies')),
+      _HubCardInfo(title: 'SRC Voting', icon: Icons.how_to_vote, color: Colors.green, onTap: (c) => showComingSoonDialog(c, 'SRC Voting Booth')),
+    ];
+  }
+
+  List<_HubCardInfo> _getServiceCards() {
+    return [
+      _HubCardInfo(title: 'Anonymous Whistleblower', icon: Icons.security, color: Colors.red.shade800, onTap: (c) => Navigator.of(c).push(MaterialPageRoute(builder: (_) => const WhistleblowerScreen()))),
+      _HubCardInfo(title: 'Peer Tutor Directory', icon: Icons.menu_book, color: Colors.blue.shade800, onTap: (c) => Navigator.of(c).push(MaterialPageRoute(builder: (_) => const TutorDirectoryScreen()))),
+      _HubCardInfo(title: 'Secure Document Wallet', icon: Icons.badge, color: Colors.blueGrey.shade700, onTap: (c) => Navigator.of(c).push(MaterialPageRoute(builder: (_) => const DocumentWalletScreen()))),
+      _HubCardInfo(title: 'Marketplace', icon: Icons.storefront, color: Colors.teal, onTap: (c) => showComingSoonDialog(c, 'Marketplace')),
+      _HubCardInfo(title: 'Lift Club', icon: Icons.directions_car, color: Colors.orange, onTap: (c) => showComingSoonDialog(c, 'Lift Club')),
+      _HubCardInfo(title: 'Accredited Accommodations', icon: Icons.verified_user, color: Colors.indigo, onTap: (c) => Navigator.of(c).push(MaterialPageRoute(builder: (_) => const AccreditedAccommodationScreen()))),
+      _HubCardInfo(title: 'Cafeteria Pre-Orders', icon: Icons.fastfood, color: Colors.deepOrange, onTap: (c) => Navigator.of(c).push(MaterialPageRoute(builder: (_) => const CafeteriaScreen()))),
+      _HubCardInfo(title: 'Lost & Found', icon: Icons.search_rounded, color: Colors.brown.shade600, onTap: (c) => Navigator.of(c).push(MaterialPageRoute(builder: (_) => const LostAndFoundScreen()))),
+    ];
   }
 }
 
@@ -894,8 +581,8 @@ class _HubCardInfo {
     required this.title,
     required this.icon,
     required this.color,
-    required this.onTap,
     this.gradientColors,
+    required this.onTap,
   });
 
   final String title;
@@ -903,4 +590,4 @@ class _HubCardInfo {
   final Color color;
   final List<Color>? gradientColors;
   final void Function(BuildContext context) onTap;
-}
+}    

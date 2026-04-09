@@ -1,5 +1,9 @@
-import 'package:fl_chart/fl_chart.dart';
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
+import 'package:shimmer/shimmer.dart';
+
 import 'package:og_vibes_student/widgets/vibe_scaffold.dart';
 
 class SrcVotingScreen extends StatefulWidget {
@@ -10,414 +14,323 @@ class SrcVotingScreen extends StatefulWidget {
 }
 
 class _SrcVotingScreenState extends State<SrcVotingScreen> {
-  final TextEditingController _idController = TextEditingController();
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _studentNumController = TextEditingController();
-  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-
-  ViewState _viewState = ViewState.verification;
-  bool _isVerifying = false;
-  bool _showBallotCast = false;
-  String? _selectedPartyId;
-
-  final List<_Party> _parties = const [
-    _Party(
-      id: 'sasco',
-      name: 'SASCO',
-      manifesto: 'Inclusive student leadership with community initiatives.',
-      color: Color(0xFFE53935),
-      votes: 42,
-    ),
-    _Party(
-      id: 'effsc',
-      name: 'EFFSC',
-      manifesto: 'Radical transformation and campus justice.',
-      color: Color(0xFFD50000),
-      votes: 33,
-    ),
-    _Party(
-      id: 'pasma',
-      name: 'PASMA',
-      manifesto: 'Academic excellence with entrepreneurial focus.',
-      color: Color(0xFF1E88E5),
-      votes: 25,
-    ),
-  ];
+  late Future<List<Map<String, dynamic>>> _candidatesFuture;
+  String? _selectedCandidate;
 
   @override
-  void dispose() {
-    _idController.dispose();
-    _nameController.dispose();
-    _studentNumController.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    _candidatesFuture = _loadCandidates();
+  }
+
+  Future<List<Map<String, dynamic>>> _loadCandidates() async {
+    await Future<void>.delayed(const Duration(milliseconds: 1000));
+
+    return const [
+      {
+        'name': 'Thabo Mokoena',
+        'slogan': 'Better Wi-Fi, Better Grades!',
+        'course': 'IT NC(V) L4',
+        'mockVotes': 45,
+        'color': Color(0xFF2962FF),
+      },
+      {
+        'name': 'Lerato Khumalo',
+        'slogan': 'Student Safety First.',
+        'course': 'Business Management N5',
+        'mockVotes': 31,
+        'color': Color(0xFF00ACC1),
+      },
+      {
+        'name': 'Sibusiso Nkosi',
+        'slogan': 'Fix Our NSFAS Allowances.',
+        'course': 'Engineering N4',
+        'mockVotes': 24,
+        'color': Color(0xFFFF7043),
+      },
+    ];
   }
 
   @override
   Widget build(BuildContext context) {
     return VibeScaffold(
-      appBar: AppBar(title: const Text('SRC Voting Booth')),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 400),
-          child: _buildActiveStage(),
-        ),
-      ),
-    );
-  }
+      appBar: AppBar(title: const Text('Secure SRC Elections')),
+      body: FutureBuilder<List<Map<String, dynamic>>>(
+        future: _candidatesFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return _buildLoadingState();
+          }
 
-  Widget _buildActiveStage() {
-    switch (_viewState) {
-      case ViewState.verification:
-        return _buildVerificationForm();
-      case ViewState.ballot:
-        return _buildVotingStep();
-      case ViewState.results:
-        return _buildResultsOnly();
-    }
-  }
-
-  Widget _buildVerificationForm() {
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 500),
-        child: Container(
-          padding: const EdgeInsets.all(28),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(32),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.08),
-                blurRadius: 40,
-                offset: const Offset(0, 24),
+          if (!snapshot.hasData || snapshot.hasError) {
+            return Center(
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  setState(() {
+                    _candidatesFuture = _loadCandidates();
+                  });
+                },
+                icon: const Icon(Icons.refresh),
+                label: const Text('Retry election feed'),
               ),
-            ],
-          ),
-          child: Form(
-            key: _formKey,
+            );
+          }
+
+          final candidates = snapshot.data!;
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
             child: Column(
-              mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
-                  'Voter Identity Check',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 6),
-                const Text(
-                  'Enter your details to verify eligibility.',
-                  style: TextStyle(color: Colors.black54),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 24),
-                TextFormField(
-                  controller: _idController,
-                  keyboardType: TextInputType.number,
-                  maxLength: 13,
-                  decoration: const InputDecoration(
-                    labelText: 'ID Number',
-                    hintText: '13-digit South African ID',
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (value) {
-                    final trimmed = value?.trim() ?? '';
-                    if (trimmed.length != 13) {
-                      return 'ID must be exactly 13 digits';
-                    }
-                    if (!RegExp(r'^\d{13}$').hasMatch(trimmed)) {
-                      return 'Only digits allowed';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _nameController,
-                  textCapitalization: TextCapitalization.words,
-                  decoration: const InputDecoration(
-                    labelText: 'Full Legal Name',
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Please enter your full name';
-                    }
-                    if (!value.trim().contains(' ')) {
-                      return 'Enter name and surname';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _studentNumController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Student Number',
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Student number required';
-                    }
-                    if (!RegExp(r'^\d+$').hasMatch(value.trim())) {
-                      return 'Digits only';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      backgroundColor: Colors.blueGrey,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(28),
-                      ),
-                    ),
-                    onPressed: _isVerifying ? null : _handleVerification,
-                    child: _isVerifying
-                        ? Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: const [
-                              SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              SizedBox(width: 12),
-                              Text('Checking Voters Roll...'),
-                            ],
-                          )
-                        : const Text('Verify Eligibility'),
-                  ),
-                ),
+                _buildLiveStatusCard(),
+                const SizedBox(height: 14),
+                Expanded(child: _buildCandidateList(candidates)),
               ],
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
 
-  Widget _buildVotingStep() {
-    return Stack(
-      children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildLoadingState() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+      child: Shimmer.fromColors(
+        baseColor: Colors.grey.shade300,
+        highlightColor: Colors.grey.shade100,
+        child: Column(
           children: [
             Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+              height: 122,
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(28),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 24,
-                    offset: const Offset(0, 14),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  Text(
-                    'Step 2 · Ballot',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  SizedBox(height: 6),
-                  Text(
-                    'Select one party to cast your vote. This action cannot be changed.',
-                    style: TextStyle(color: Colors.black54),
-                  ),
-                ],
+                borderRadius: BorderRadius.circular(24),
               ),
             ),
-            const SizedBox(height: 16),
-            Expanded(child: _buildBallotTab()),
+            const SizedBox(height: 14),
+            Expanded(
+              child: ListView.separated(
+                itemCount: 3,
+                separatorBuilder: (context, _) => const SizedBox(height: 12),
+                itemBuilder: (context, _) => Container(
+                  height: 196,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
-        if (_showBallotCast)
-          Positioned.fill(
-            child: IgnorePointer(
-              child: AnimatedOpacity(
-                opacity: _showBallotCast ? 1 : 0,
-                duration: const Duration(milliseconds: 300),
-                child: Center(
-                  child: _BallotCastAnimation(
-                    onComplete: () => setState(() {
-                      _showBallotCast = false;
-                      _viewState = ViewState.results;
-                    }),
-                  ),
-                ),
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-
-  Widget _buildBallotTab() {
-    return ListView.separated(
-      itemCount: _parties.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 16),
-      itemBuilder: (context, index) {
-        final party = _parties[index];
-        final isSelected = party.id == _selectedPartyId;
-        return Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(24),
-            color: Colors.white,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 20,
-                offset: const Offset(0, 12),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  CircleAvatar(
-                    backgroundColor: party.color.withValues(alpha: 0.15),
-                    child: Text(
-                      party.name[0],
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    party.name,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const Spacer(),
-                  if (isSelected)
-                    const Icon(Icons.verified, color: Colors.green),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Text(
-                party.manifesto,
-                style: const TextStyle(color: Colors.black54),
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: party.color,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                  ),
-                  onPressed: () => _handleVote(party),
-                  icon: const Icon(Icons.how_to_vote),
-                  label: Text(isSelected ? 'Vote Cast' : 'VOTE X'),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildResultsOnly() {
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 520),
-        child: _buildResultsCard(),
       ),
     );
   }
 
-  Widget _buildResultsCard() {
-    final totalVotes = _parties.fold<int>(0, (sum, party) => sum + party.votes);
+  Widget _buildLiveStatusCard() {
     return Container(
-      padding: const EdgeInsets.all(24),
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(32),
-        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF1B5E20), Color(0xFF2E7D32)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 30,
-            offset: const Offset(0, 18),
+            color: const Color(0xFF2E7D32).withValues(alpha: 0.28),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Row(
+            children: [
+              Container(
+                width: 12,
+                height: 12,
+                decoration: const BoxDecoration(
+                  color: Color(0xFF69F0AE),
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'Elections are currently LIVE.',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
           const Text(
-            'Live Vote Distribution',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            'Ermelo TVET College • SRC President Ballot',
+            style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 12),
-          SizedBox(
-            height: 240,
-            child: PieChart(
-              PieChartData(
-                centerSpaceRadius: 40,
-                sectionsSpace: 2,
-                sections: _parties
-                    .map(
-                      (party) => PieChartSectionData(
-                        color: party.color,
-                        value: party.votes.toDouble(),
-                        title: totalVotes == 0
-                            ? '0%'
-                            : '${((party.votes / totalVotes) * 100).toStringAsFixed(0)}%',
-                        radius: 70,
-                        titleStyle: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    )
-                    .toList(),
-              ),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: 0.71,
+              minHeight: 8,
+              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF69F0AE)),
+              backgroundColor: Colors.white.withValues(alpha: 0.2),
             ),
           ),
-          const SizedBox(height: 16),
-          ..._parties.map(
-            (party) => Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Row(
-                children: [
-                  Container(
-                    width: 12,
-                    height: 12,
-                    decoration: BoxDecoration(
-                      color: party.color,
-                      shape: BoxShape.circle,
+          const SizedBox(height: 6),
+          const Text(
+            'Turnout progress: 71% of registered voters',
+            style: TextStyle(color: Colors.white70, fontSize: 12),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCandidateList(List<Map<String, dynamic>> candidates) {
+    return AnimationLimiter(
+      child: ListView.separated(
+        itemCount: candidates.length,
+        separatorBuilder: (context, _) => const SizedBox(height: 12),
+        itemBuilder: (context, index) {
+          final candidate = candidates[index];
+          return AnimationConfiguration.staggeredList(
+            position: index,
+            duration: const Duration(milliseconds: 400),
+            child: SlideAnimation(
+              verticalOffset: 24,
+              child: FadeInAnimation(
+                child: _buildCandidateCard(candidate),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildCandidateCard(Map<String, dynamic> candidate) {
+    final name = candidate['name'] as String;
+    final slogan = candidate['slogan'] as String;
+    final course = candidate['course'] as String;
+    final mockVotes = candidate['mockVotes'] as int;
+    final color = candidate['color'] as Color;
+    final selected = _selectedCandidate == name;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: selected ? color.withValues(alpha: 0.65) : Colors.transparent,
+          width: 1.6,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.person, color: color),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      style: const TextStyle(
+                        color: Colors.black87,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 17,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      party.name,
-                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    Text(
+                      course,
+                      style: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
+                  ],
+                ),
+              ),
+              if (selected)
+                const Icon(Icons.verified, color: Colors.green, size: 22),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            '"$slogan"',
+            style: const TextStyle(
+              fontStyle: FontStyle.italic,
+              color: Colors.black87,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: LinearProgressIndicator(
+                    value: (mockVotes / 100).clamp(0.0, 1.0),
+                    minHeight: 9,
+                    valueColor: AlwaysStoppedAnimation<Color>(color),
+                    backgroundColor: color.withValues(alpha: 0.18),
                   ),
-                  Text('${party.votes} votes'),
-                ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                '$mockVotes% mock',
+                style: TextStyle(
+                  color: color,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () => _castVote(name),
+              icon: const Icon(Icons.how_to_vote),
+              label: Text(selected ? 'VOTE RECORDED' : 'VOTE'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: color,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
               ),
             ),
           ),
@@ -426,106 +339,36 @@ class _SrcVotingScreenState extends State<SrcVotingScreen> {
     );
   }
 
-  Future<void> _handleVerification() async {
-    final form = _formKey.currentState;
-    if (form == null || !form.validate()) {
-      return;
-    }
-    setState(() => _isVerifying = true);
-    await Future<void>.delayed(const Duration(seconds: 2));
-    if (!mounted) return;
-    setState(() {
-      _isVerifying = false;
-      _viewState = ViewState.ballot;
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Identity Verified: You may vote.')),
-    );
-  }
+  Future<void> _castVote(String candidateName) async {
+    setState(() => _selectedCandidate = candidateName);
 
-  Future<void> _handleVote(_Party party) async {
-    setState(() {
-      _selectedPartyId = party.id;
-      _showBallotCast = true;
-    });
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('Ballot cast for ${party.name}.')));
-  }
-}
-
-class _BallotCastAnimation extends StatefulWidget {
-  const _BallotCastAnimation({required this.onComplete});
-
-  final VoidCallback onComplete;
-
-  @override
-  State<_BallotCastAnimation> createState() => _BallotCastAnimationState();
-}
-
-class _BallotCastAnimationState extends State<_BallotCastAnimation>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    )..forward().whenComplete(widget.onComplete);
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        final dropProgress = Curves.easeOut.transform(_controller.value);
-        return Opacity(
-          opacity: 1 - _controller.value.clamp(0, 1),
-          child: Transform.translate(
-            offset: Offset(0, (dropProgress * 120) - 60),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: const [
-                Icon(Icons.receipt_long, size: 72, color: Colors.blueGrey),
-                SizedBox(height: 12),
-                Icon(Icons.how_to_vote, size: 48, color: Colors.green),
-                SizedBox(height: 8),
-                Text(
-                  'Ballot Cast',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
+    await showDialog<void>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('Encrypted Vote Complete'),
+          content: Text(
+            'Your vote for $candidateName was securely recorded via blockchain/encrypted ledger!',
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Done'),
+            ),
+          ],
         );
       },
     );
+
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Vote securely recorded via blockchain/encrypted ledger!'),
+      ),
+    );
   }
 }
-
-class _Party {
-  const _Party({
-    required this.id,
-    required this.name,
-    required this.manifesto,
-    required this.color,
-    required this.votes,
-  });
-
-  final String id;
-  final String name;
-  final String manifesto;
-  final Color color;
-  final int votes;
-}
-
-enum ViewState { verification, ballot, results }

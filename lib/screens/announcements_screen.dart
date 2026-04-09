@@ -1,9 +1,7 @@
-﻿import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:shimmer/shimmer.dart';
+
 import 'package:og_vibes_student/widgets/vibe_scaffold.dart';
-import 'package:timeago/timeago.dart' as timeago;
-import 'package:url_launcher/url_launcher.dart';
 
 class AnnouncementsScreen extends StatefulWidget {
   const AnnouncementsScreen({super.key});
@@ -15,7 +13,9 @@ class AnnouncementsScreen extends StatefulWidget {
 class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
   final TextEditingController _searchController = TextEditingController();
   final Set<String> _expandedAnnouncements = <String>{};
-  late final Future<String?> _campusFuture = _fetchUserCampus();
+  final Set<String> _readAnnouncements = <String>{};
+  late final Future<List<Map<String, dynamic>>> _announcementsFuture =
+      _loadAnnouncements();
 
   @override
   void dispose() {
@@ -23,34 +23,79 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
     super.dispose();
   }
 
-  Future<String?> _fetchUserCampus() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return null;
-    final snapshot = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .get();
-    return snapshot.data()?['campus'] as String?;
+  Future<List<Map<String, dynamic>>> _loadAnnouncements() async {
+    await Future<void>.delayed(const Duration(milliseconds: 1000));
+
+    return const [
+      {
+        'id': 'urgent_nsfas_allowances_2026_03',
+        'title': 'URGENT: NSFAS Allowances Cleared',
+        'body':
+            'March 2026 allowances have been disbursed. Please check your banking apps. If you have not received funds by Friday, log a ticket on the Campus Hub.',
+        'role': 'Financial Aid Office',
+        'urgency': 'critical',
+        'isPinned': true,
+        'time': '1 hour ago',
+      },
+      {
+        'id': 'ncv_it_practicals_relocated',
+        'title': 'NC(V) L3 IT Practical Exams Relocated',
+        'body':
+            'Due to maintenance in Lab 2, all IT practicals scheduled for tomorrow will now take place in the Main Library Training Room.',
+        'role': 'Examination Dept',
+        'urgency': 'warning',
+        'isPinned': false,
+        'time': '5 hours ago',
+      },
+      {
+        'id': 'src_2026_election_briefing',
+        'title': 'SRC 2026 Election Briefing',
+        'body':
+            'All nominated candidates must attend the mandatory briefing in the Main Hall today at 14:00. Failure to attend will result in disqualification.',
+        'role': 'Campus Manager',
+        'urgency': 'info',
+        'isPinned': false,
+        'time': 'Yesterday',
+      },
+      {
+        'id': 'updated_tvet_academic_calendar',
+        'title': 'Updated TVET Academic Calendar',
+        'body':
+            'Please find attached the revised DHET academic calendar for Term 2 and Term 3.',
+        'role': 'Admin',
+        'urgency': 'info',
+        'isPinned': false,
+        'time': '2 days ago',
+        'hasAttachment': true,
+      },
+    ];
   }
 
   @override
   Widget build(BuildContext context) {
     return VibeScaffold(
       appBar: AppBar(title: const Text('Official Campus News')),
-      body: FutureBuilder<String?>(
-        future: _campusFuture,
+      body: FutureBuilder<List<Map<String, dynamic>>>(
+        future: _announcementsFuture,
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+          if (snapshot.connectionState != ConnectionState.done) {
+            return _buildLoadingState();
           }
-          if (snapshot.data == null) {
-            return const Center(
-              child: Text(
-                'Please complete your profile to view announcements.',
+
+          if (!snapshot.hasData || snapshot.hasError) {
+            return Center(
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  setState(() {});
+                },
+                icon: const Icon(Icons.refresh),
+                label: const Text('Retry announcements load'),
               ),
             );
           }
-          final campus = snapshot.data!;
+
+          final filtered = _filterAnnouncements(snapshot.data!);
+
           return Column(
             children: [
               Padding(
@@ -68,74 +113,111 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                 ),
               ),
               Expanded(
-                child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                  stream: FirebaseFirestore.instance
-                      .collection('announcements')
-                      .where('campus', isEqualTo: campus)
-                      .orderBy('isPinned', descending: true)
-                      .orderBy('createdAt', descending: true)
-                      .snapshots(),
-                  builder: (context, snapshot) {
-                    if (snapshot.hasError) {
-                      return const Center(
-                        child: Text('Unable to load announcements right now.'),
-                      );
-                    }
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    final docs = snapshot.data?.docs ?? [];
-                    final filtered = docs.where((doc) {
-                      final query = _searchController.text.trim().toLowerCase();
-                      if (query.isEmpty) return true;
-                      final data = doc.data();
-                      final title = (data['title'] as String? ?? '')
-                          .toLowerCase();
-                      final body = (data['body'] as String? ?? '')
-                          .toLowerCase();
-                      return title.contains(query) || body.contains(query);
-                    }).toList();
+                child: filtered.isEmpty
+                    ? const Center(child: Text('No announcements found.'))
+                    : ListView.separated(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        itemBuilder: (context, index) {
+                          final data = filtered[index];
+                          final announcementId = data['id'] as String;
+                          final isExpanded = _expandedAnnouncements.contains(
+                            announcementId,
+                          );
 
-                    if (filtered.isEmpty) {
-                      return const Center(child: Text('No announcements yet.'));
-                    }
-
-                    return ListView.separated(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
+                          return AnnouncementCard(
+                            data: data,
+                            announcementId: announcementId,
+                            isExpanded: isExpanded,
+                            hasSeen: _readAnnouncements.contains(announcementId),
+                            onToggleExpanded: () {
+                              setState(() {
+                                if (isExpanded) {
+                                  _expandedAnnouncements.remove(announcementId);
+                                } else {
+                                  _expandedAnnouncements.add(announcementId);
+                                }
+                              });
+                            },
+                            onMarkRead: () {
+                              setState(() {
+                                _readAnnouncements.add(announcementId);
+                              });
+                            },
+                            onDownloadAttachment: () {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Downloading Calendar PDF...'),
+                                ),
+                              );
+                            },
+                          );
+                        },
+                        separatorBuilder: (_, _) => const SizedBox(height: 12),
+                        itemCount: filtered.length,
                       ),
-                      itemBuilder: (context, index) {
-                        final doc = filtered[index];
-                        final data = doc.data();
-                        final docId = doc.id;
-                        final isExpanded = _expandedAnnouncements.contains(
-                          docId,
-                        );
-                        return AnnouncementCard(
-                          data: data,
-                          announcementId: docId,
-                          isExpanded: isExpanded,
-                          onToggleExpanded: () {
-                            setState(() {
-                              if (isExpanded) {
-                                _expandedAnnouncements.remove(docId);
-                              } else {
-                                _expandedAnnouncements.add(docId);
-                              }
-                            });
-                          },
-                        );
-                      },
-                      separatorBuilder: (_, _) => const SizedBox(height: 12),
-                      itemCount: filtered.length,
-                    );
-                  },
-                ),
               ),
             ],
           );
         },
+      ),
+    );
+  }
+
+  List<Map<String, dynamic>> _filterAnnouncements(
+    List<Map<String, dynamic>> source,
+  ) {
+    final query = _searchController.text.trim().toLowerCase();
+    final filtered = source.where((announcement) {
+      if (query.isEmpty) return true;
+      final title = (announcement['title'] as String? ?? '').toLowerCase();
+      final body = (announcement['body'] as String? ?? '').toLowerCase();
+      return title.contains(query) || body.contains(query);
+    }).toList();
+
+    filtered.sort((a, b) {
+      final aPinned = a['isPinned'] as bool? ?? false;
+      final bPinned = b['isPinned'] as bool? ?? false;
+      if (aPinned == bPinned) return 0;
+      return aPinned ? -1 : 1;
+    });
+
+    return filtered;
+  }
+
+  Widget _buildLoadingState() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      child: Shimmer.fromColors(
+        baseColor: Colors.grey.shade300,
+        highlightColor: Colors.grey.shade100,
+        child: Column(
+          children: [
+            Container(
+              height: 56,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Expanded(
+              child: ListView.separated(
+                itemCount: 4,
+                separatorBuilder: (_, _) => const SizedBox(height: 12),
+                itemBuilder: (_, _) => Container(
+                  height: 192,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -146,14 +228,20 @@ class AnnouncementCard extends StatelessWidget {
     required this.data,
     required this.announcementId,
     required this.isExpanded,
+    required this.hasSeen,
     required this.onToggleExpanded,
+    required this.onMarkRead,
+    required this.onDownloadAttachment,
     super.key,
   });
 
   final Map<String, dynamic> data;
   final String announcementId;
   final bool isExpanded;
+  final bool hasSeen;
   final VoidCallback onToggleExpanded;
+  final VoidCallback onMarkRead;
+  final VoidCallback onDownloadAttachment;
 
   @override
   Widget build(BuildContext context) {
@@ -161,15 +249,9 @@ class AnnouncementCard extends StatelessWidget {
     final title = data['title'] as String? ?? 'Announcement';
     final body = data['body'] as String? ?? '';
     final role = data['role'] as String? ?? 'Admin';
-    final pdfUrl = data['pdfUrl'] as String?;
     final isPinned = data['isPinned'] as bool? ?? false;
-    final createdAt = data['createdAt'];
-    final timestamp = createdAt is Timestamp
-        ? createdAt.toDate()
-        : DateTime.now();
-    final readBy = List<String>.from(data['readBy'] as List<dynamic>? ?? []);
-    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
-    final hasSeen = currentUserId != null && readBy.contains(currentUserId);
+    final hasAttachment = data['hasAttachment'] as bool? ?? false;
+    final relativeTime = data['time'] as String? ?? 'Just now';
 
     final borderColor = switch (urgency) {
       'critical' => Colors.redAccent,
@@ -177,7 +259,6 @@ class AnnouncementCard extends StatelessWidget {
       _ => Colors.green,
     };
 
-    final relativeTime = timeago.format(timestamp, allowFromNow: true);
     const textColor = Colors.black87;
     const subtleText = Colors.black54;
 
@@ -206,7 +287,7 @@ class AnnouncementCard extends StatelessWidget {
                     ),
                   ),
                   Chip(
-                    label: Text('$role ðŸ›¡ï¸'),
+                    label: Text(role),
                     labelStyle: const TextStyle(color: Colors.black87),
                     backgroundColor: Colors.grey.shade200,
                   ),
@@ -231,10 +312,10 @@ class AnnouncementCard extends StatelessWidget {
                   child: Text(isExpanded ? 'Show Less' : 'Read More'),
                 ),
               ),
-              if (pdfUrl != null && pdfUrl.isNotEmpty) ...[
+              if (hasAttachment) ...[
                 const SizedBox(height: 8),
                 OutlinedButton.icon(
-                  onPressed: () => _launchAttachment(pdfUrl),
+                  onPressed: onDownloadAttachment,
                   icon: const Icon(Icons.file_download_outlined),
                   label: const Text('Download Document'),
                 ),
@@ -264,9 +345,7 @@ class AnnouncementCard extends StatelessWidget {
                     )
                   else
                     FilledButton.icon(
-                      onPressed: currentUserId == null
-                          ? null
-                          : () => _markAsRead(announcementId, currentUserId),
+                      onPressed: onMarkRead,
                       icon: const Icon(Icons.check_circle_outline),
                       label: const Text('I Understand'),
                     ),
@@ -303,25 +382,5 @@ class AnnouncementCard extends StatelessWidget {
           ),
       ],
     );
-  }
-
-  Future<void> _launchAttachment(String url) async {
-    final uri = Uri.parse(url);
-    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      debugPrint('Unable to open attachment: $url');
-    }
-  }
-
-  Future<void> _markAsRead(String announcementId, String uid) async {
-    try {
-      await FirebaseFirestore.instance
-          .collection('announcements')
-          .doc(announcementId)
-          .update({
-            'readBy': FieldValue.arrayUnion([uid]),
-          });
-    } catch (error) {
-      debugPrint('Unable to mark announcement as read: $error');
-    }
   }
 }

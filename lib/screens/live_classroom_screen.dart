@@ -1,9 +1,8 @@
-import 'dart:async';
-import 'dart:ui';
+﻿import 'dart:async';
 
 import 'package:flutter/material.dart';
+
 import 'package:og_vibes_student/models/live_session.dart';
-import 'package:og_vibes_student/widgets/vibe_scaffold.dart';
 
 class LiveClassroomScreen extends StatefulWidget {
   const LiveClassroomScreen({super.key, required this.session});
@@ -15,425 +14,452 @@ class LiveClassroomScreen extends StatefulWidget {
 }
 
 class _LiveClassroomScreenState extends State<LiveClassroomScreen> {
-  bool _isBreakout = true;
-  Timer? _attendanceTimer;
-  Timer? _breakoutTimer;
-
-  final List<_ChatMessage> _messages = [
-    _ChatMessage(
-      author: 'Mr. Dlamini',
-      body: 'Remember to mute when not speaking. We start in 30 seconds.',
-      isLecturer: true,
-    ),
-    _ChatMessage(
-      author: 'Amahle',
-      body: 'Morning sir, can we get the formula sheet again?',
-    ),
-    _ChatMessage(
-      author: 'Mr. Dlamini',
-      body: 'Uploaded to the Teacher\'s Desk tab',
-      isLecturer: true,
-    ),
-    _ChatMessage(author: 'Sizwe', body: 'Awesome, thanks!'),
-  ];
-
-  final List<_ResourceItem> _resources = [
-    _ResourceItem(
-      title: 'Complex Numbers Recap.pdf',
-      subtitle: 'Slides - 2.3 MB',
-      icon: Icons.picture_as_pdf,
-    ),
-    _ResourceItem(
-      title: 'Audio Notes - Week 4.m4a',
-      subtitle: 'Audio - 8 mins',
-      icon: Icons.graphic_eq,
-    ),
-    _ResourceItem(
-      title: 'Assignment Template.docx',
-      subtitle: 'Handout - 120 KB',
-      icon: Icons.description_outlined,
-    ),
-  ];
+  // Start near the threshold so demos quickly show compliance turning green.
+  int _secondsElapsed = 1790;
+  final int _requiredSeconds = 1800;
+  Timer? _timer;
 
   @override
   void initState() {
     super.initState();
     _startAttendanceTimer();
-    _startBreakoutCountdown();
+  }
+
+  void _startAttendanceTimer() {
+    _timer = Timer.periodic(const Duration(seconds: 1), (Timer timer) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _secondsElapsed++;
+      });
+    });
   }
 
   @override
   void dispose() {
-    _attendanceTimer?.cancel();
-    _breakoutTimer?.cancel();
+    _timer?.cancel();
     super.dispose();
   }
 
-  void _startAttendanceTimer() {
-    _attendanceTimer = Timer(const Duration(seconds: 10), () {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('✅ Attendance Marked: You are present.')),
-      );
-    });
-  }
-
-  void _startBreakoutCountdown() {
-    _breakoutTimer = Timer(const Duration(seconds: 8), () {
-      if (!mounted) return;
-      setState(() => _isBreakout = false);
-    });
-  }
-
-  void _handleRaiseHand() {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('You raised your hand. Mr. Dlamini notified.'),
-      ),
-    );
+  String _formatDuration(int totalSeconds) {
+    final int minutes = totalSeconds ~/ 60;
+    final int seconds = totalSeconds % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 2,
-      child: VibeScaffold(
-        appBar: AppBar(
-          title: Text('${widget.session.subject} - ${widget.session.topic}'),
-        ),
-        body: Column(
-          children: [
-            Expanded(
-              flex: 4,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: _StageArea(
-                  isBreakout: _isBreakout,
-                  onRaiseHand: _handleRaiseHand,
-                ),
-              ),
-            ),
-            Expanded(
-              flex: 6,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(32),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.08),
-                      blurRadius: 24,
-                      offset: const Offset(0, -4),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    const TabBar(
-                      indicatorWeight: 3,
-                      tabs: [
-                        Tab(text: '💬 Live Chat'),
-                        Tab(text: '📂 Teacher\'s Desk'),
-                      ],
-                    ),
-                    Expanded(
-                      child: TabBarView(
-                        children: [
-                          _LiveChatTab(messages: _messages),
-                          _TeacherDeskTab(resources: _resources),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+    final bool isPresent = _secondsElapsed >= _requiredSeconds;
+    final double progress = (_secondsElapsed / _requiredSeconds).clamp(
+      0.0,
+      1.0,
+    );
+
+    return Scaffold(
+      backgroundColor: const Color(0xFF121212),
+      body: SafeArea(
+        child: Column(
+          children: <Widget>[
+            _buildTopBar(),
+            _buildAttendanceTracker(isPresent, progress),
+            Expanded(child: _buildMainStage()),
+            _buildParticipantGrid(),
+            _buildControlBar(context),
           ],
         ),
       ),
     );
   }
-}
 
-class _StageArea extends StatelessWidget {
-  const _StageArea({required this.isBreakout, required this.onRaiseHand});
+  Widget _buildTopBar() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        children: <Widget>[
+          IconButton(
+            icon: const Icon(
+              Icons.keyboard_arrow_down_rounded,
+              color: Colors.white,
+              size: 32,
+            ),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  widget.session.subject,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                const Row(
+                  children: <Widget>[
+                    Icon(Icons.lock, color: Colors.greenAccent, size: 12),
+                    SizedBox(width: 4),
+                    Text(
+                      'End-to-end encrypted',
+                      style: TextStyle(color: Colors.white54, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.red.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.red),
+            ),
+            child: const Row(
+              children: <Widget>[
+                Icon(Icons.fiber_manual_record, color: Colors.red, size: 12),
+                SizedBox(width: 4),
+                Text(
+                  'REC',
+                  style: TextStyle(
+                    color: Colors.red,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-  final bool isBreakout;
-  final VoidCallback onRaiseHand;
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.black,
-            borderRadius: BorderRadius.circular(28),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.5),
-                blurRadius: 30,
-                offset: const Offset(0, 18),
+  Widget _buildAttendanceTracker(bool isPresent, double progress) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E1E1E),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isPresent
+              ? Colors.green
+              : Colors.orangeAccent.withValues(alpha: 0.5),
+          width: 1.5,
+        ),
+      ),
+      child: Column(
+        children: <Widget>[
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  Icon(
+                    isPresent ? Icons.check_circle : Icons.timer_outlined,
+                    color: isPresent ? Colors.green : Colors.orangeAccent,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    isPresent
+                        ? 'NSFAS Register: Present'
+                        : 'NSFAS Register: In Progress',
+                    style: TextStyle(
+                      color: isPresent ? Colors.green : Colors.orangeAccent,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+              Text(
+                '${_formatDuration(_secondsElapsed)} / 30:00',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontFamily: 'monospace',
+                  fontSize: 13,
+                ),
               ),
             ],
           ),
-          child: const Center(
-            child: Text(
-              'Live Video Feed',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 6,
+              backgroundColor: Colors.grey.shade800,
+              valueColor: AlwaysStoppedAnimation<Color>(
+                isPresent ? Colors.green : Colors.orangeAccent,
               ),
             ),
           ),
-        ),
-        Positioned(
-          top: 20,
-          left: 20,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.redAccent,
-              borderRadius: BorderRadius.circular(20),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMainStage() {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Stack(
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: <Widget>[
+                const Text(
+                  'Module 3: Business Plans',
+                  style: TextStyle(
+                    color: Color(0xFF0D47A1),
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                _bulletPoint('Executive Summary'),
+                _bulletPoint('Market Analysis & Strategy'),
+                _bulletPoint('Operational Plan'),
+                _bulletPoint('Financial Projections'),
+              ],
             ),
-            child: const Text(
-              '🔴 LIVE | 45:00',
-              style: TextStyle(
+          ),
+          Positioned(
+            bottom: 16,
+            left: 16,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.black87,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: <Widget>[
+                  const Icon(Icons.mic, color: Colors.white, size: 14),
+                  const SizedBox(width: 6),
+                  Text(
+                    '${widget.session.lecturer} (Presenting)',
+                    style: const TextStyle(color: Colors.white, fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _bulletPoint(String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: <Widget>[
+          const Icon(Icons.check_box, color: Color(0xFF1E88E5), size: 20),
+          const SizedBox(width: 12),
+          Text(
+            text,
+            style: const TextStyle(
+              color: Colors.black87,
+              fontSize: 18,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildParticipantGrid() {
+    return SizedBox(
+      height: 100,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        children: <Widget>[
+          _buildParticipantCam('SN', 'Sipho N.', isMuted: true),
+          _buildParticipantCam(
+            'DK',
+            'David K.',
+            isMuted: false,
+            isSpeaking: true,
+          ),
+          _buildParticipantCam('LM', 'Lerato M.', isMuted: true),
+          _buildParticipantCam('TM', 'Thandi M.', isMuted: true),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildParticipantCam(
+    String initials,
+    String name, {
+    bool isMuted = true,
+    bool isSpeaking = false,
+  }) {
+    return Container(
+      width: 100,
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFF2C2C2C),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isSpeaking ? Colors.blue : Colors.transparent,
+          width: 2,
+        ),
+      ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: <Widget>[
+          CircleAvatar(
+            radius: 20,
+            backgroundColor: Colors.blue.shade800,
+            child: Text(
+              initials,
+              style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
               ),
             ),
           ),
-        ),
-        Positioned(
-          bottom: 20,
-          right: 20,
-          child: ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.deepOrangeAccent,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-            ),
-            onPressed: onRaiseHand,
-            child: const Text('Raise Hand ✋'),
-          ),
-        ),
-        if (isBreakout)
-          Positioned.fill(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(28),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.08),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.3),
-                    ),
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: const [
-                      Icon(Icons.timer_outlined, color: Colors.white, size: 42),
-                      SizedBox(height: 12),
-                      Text(
-                        'Break ends in 04:59',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        'Students are in breakout pods',
-                        style: TextStyle(color: Colors.white70),
-                      ),
-                    ],
+          Positioned(
+            bottom: 8,
+            left: 8,
+            right: 8,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: <Widget>[
+                Expanded(
+                  child: Text(
+                    name,
+                    style: const TextStyle(color: Colors.white, fontSize: 11),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-              ),
+                Icon(
+                  isMuted ? Icons.mic_off : Icons.mic,
+                  color: isMuted ? Colors.red : Colors.greenAccent,
+                  size: 14,
+                ),
+              ],
             ),
           ),
-      ],
+        ],
+      ),
     );
   }
-}
 
-class _LiveChatTab extends StatelessWidget {
-  const _LiveChatTab({required this.messages});
-
-  final List<_ChatMessage> messages;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-            itemCount: messages.length,
-            itemBuilder: (context, index) {
-              final message = messages[index];
-              final alignment = message.isLecturer
-                  ? Alignment.centerLeft
-                  : Alignment.centerRight;
-              final bubbleColor = message.isLecturer
-                  ? Colors.grey.shade200
-                  : Theme.of(
-                      context,
-                    ).colorScheme.primary.withValues(alpha: 0.15);
-              final textColor = message.isLecturer
-                  ? Colors.black87
-                  : Colors.black87;
-
-              return Align(
-                alignment: alignment,
-                child: Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: bubbleColor,
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        message.author,
-                        style: TextStyle(
-                          color: message.isLecturer
-                              ? Colors.deepPurple
-                              : Colors.indigo,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(message.body, style: TextStyle(color: textColor)),
-                    ],
+  Widget _buildControlBar(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: <Widget>[
+          _controlButton(Icons.videocam_off, 'Video', isOff: true),
+          _controlButton(Icons.mic_off, 'Mic', isOff: true),
+          _controlButton(
+            Icons.present_to_all,
+            'Share',
+            onTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'Lecturer permission required to share screen.',
                   ),
                 ),
               );
             },
           ),
-        ),
-        const Divider(height: 1),
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  decoration: InputDecoration(
-                    labelText: 'Smart Input',
-                    hintText: 'Share your idea or question... ',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                  ),
+          _controlButton(Icons.chat_bubble_outline, 'Chat', badge: '3'),
+          GestureDetector(
+            onTap: () => Navigator.of(context).pop(),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.red,
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: const Text(
+                'Leave',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
                 ),
               ),
-              const SizedBox(width: 12),
-              CircleAvatar(
-                backgroundColor: Theme.of(context).colorScheme.primary,
-                child: const Icon(Icons.send, color: Colors.white),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _TeacherDeskTab extends StatelessWidget {
-  const _TeacherDeskTab({required this.resources});
-
-  final List<_ResourceItem> resources;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView.separated(
-      padding: const EdgeInsets.all(16),
-      itemBuilder: (context, index) => _ResourceCard(item: resources[index]),
-      separatorBuilder: (context, index) => const SizedBox(height: 12),
-      itemCount: resources.length,
-    );
-  }
-}
-
-class _ResourceCard extends StatelessWidget {
-  const _ResourceCard({required this.item});
-
-  final _ResourceItem item;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Icon(item.icon, color: Colors.indigo),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.title,
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  item.subtitle,
-                  style: const TextStyle(color: Colors.black54),
-                ),
-              ],
             ),
           ),
-          const Icon(Icons.download_outlined),
         ],
       ),
     );
   }
-}
 
-class _ChatMessage {
-  const _ChatMessage({
-    required this.author,
-    required this.body,
-    this.isLecturer = false,
-  });
-
-  final String author;
-  final String body;
-  final bool isLecturer;
-}
-
-class _ResourceItem {
-  const _ResourceItem({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-  });
-
-  final String title;
-  final String subtitle;
-  final IconData icon;
+  Widget _controlButton(
+    IconData icon,
+    String label, {
+    bool isOff = false,
+    String? badge,
+    VoidCallback? onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: <Widget>[
+          Stack(
+            clipBehavior: Clip.none,
+            children: <Widget>[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: isOff ? Colors.white24 : const Color(0xFF2C2C2C),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: Colors.white, size: 24),
+              ),
+              if (badge != null)
+                Positioned(
+                  top: -4,
+                  right: -4,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text(
+                      badge,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            label,
+            style: const TextStyle(color: Colors.white70, fontSize: 11),
+          ),
+        ],
+      ),
+    );
+  }
 }

@@ -1,282 +1,253 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:shimmer/shimmer.dart';
+
 import 'package:og_vibes_student/widgets/vibe_scaffold.dart';
 
-class CampusMapScreen extends StatelessWidget {
+class CampusMapScreen extends StatefulWidget {
   const CampusMapScreen({super.key});
 
   @override
+  State<CampusMapScreen> createState() => _CampusMapScreenState();
+}
+
+class _CampusMapScreenState extends State<CampusMapScreen> {
+  late Future<List<Map<String, dynamic>>> _locationsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _locationsFuture = _loadLocations();
+  }
+
+  Future<List<Map<String, dynamic>>> _loadLocations() async {
+    await Future<void>.delayed(const Duration(milliseconds: 800));
+
+    return const [
+      {
+        'title': 'Admin Block & Student Support',
+        'icon': Icons.business,
+        'description': 'Main gate entrance',
+        'accent': Color(0xFF2962FF),
+      },
+      {
+        'title': 'Campus Clinic',
+        'icon': Icons.local_hospital,
+        'description': 'Next to Block C',
+        'accent': Color(0xFFE53935),
+      },
+      {
+        'title': 'IT Labs 1-4',
+        'icon': Icons.computer,
+        'description': 'First floor, Block A',
+        'accent': Color(0xFF00ACC1),
+      },
+      {
+        'title': 'Main Cafeteria',
+        'icon': Icons.restaurant,
+        'description': 'Center of campus',
+        'accent': Color(0xFFFF8F00),
+      },
+    ];
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final quickPins = [
-      'Library',
-      'Labs',
-      'Admin',
-      'Sports',
-      'Emergency',
-      'Accessibility',
-    ];
-
-    final buildings = [
-      {
-        'name': 'Engineering Block',
-        'type': 'Labs + Workshops',
-        'distance': '120m',
-        'status': 'Open',
-      },
-      {
-        'name': 'Main Library',
-        'type': 'Study Spaces',
-        'distance': '250m',
-        'status': 'Open until 20:00',
-      },
-      {
-        'name': 'Admin Building',
-        'type': 'Admissions + Finance',
-        'distance': '310m',
-        'status': 'Open until 16:30',
-      },
-      {
-        'name': 'Science Hall',
-        'type': 'Lecture Theatres',
-        'distance': '400m',
-        'status': 'Open',
-      },
-    ];
-
-    final emergencyPoints = [
-      {'label': 'Security Office', 'detail': 'Opposite Gate A'},
-      {'label': 'Clinic', 'detail': 'Near Sports Center'},
-      {'label': 'Emergency Call Box', 'detail': 'Library South Entrance'},
-    ];
-
-    final accessibilityRoutes = [
-      {'label': 'Ramp Route', 'detail': 'Gate B to Engineering Block'},
-      {'label': 'Lift Access', 'detail': 'Main Library Level 2'},
-      {'label': 'Accessible Parking', 'detail': 'North Parking Bay 3'},
-    ];
-
     return VibeScaffold(
       appBar: AppBar(title: const Text('Campus Map')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 24, 20, 120),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Find your way fast',
-              style: Theme.of(
-                context,
-              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Buildings, labs, emergency points, and accessible routes.',
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(color: Colors.black54),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              decoration: InputDecoration(
-                hintText: 'Search building, lab, or venue',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.tune),
-                  onPressed: () {},
+      body: FutureBuilder<List<Map<String, dynamic>>>(
+        future: _locationsFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return _buildLoading();
+          }
+          if (!snapshot.hasData || snapshot.hasError) {
+            return Center(
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  setState(() {
+                    _locationsFuture = _loadLocations();
+                  });
+                },
+                icon: const Icon(Icons.refresh),
+                label: const Text('Retry map load'),
+              ),
+            );
+          }
+
+          final locations = snapshot.data!;
+          return SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(16, 18, 16, 110),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildHeroCard(),
+                const SizedBox(height: 16),
+                GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: locations.length,
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    childAspectRatio: 1.03,
+                  ),
+                  itemBuilder: (context, index) => _LocationCard(
+                    location: locations[index],
+                    onTap: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Opening ${locations[index]['title']}...')),
+                      );
+                    },
+                  ),
                 ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildHeroCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF2962FF), Color(0xFF00ACC1)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF2962FF).withValues(alpha: 0.3),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Key Campus Locations',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 19,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          SizedBox(height: 7),
+          Text(
+            'Offline demo mode: quick access to essential Ermelo campus points.',
+            style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoading() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 18, 16, 110),
+      child: Shimmer.fromColors(
+        baseColor: Colors.grey.shade300,
+        highlightColor: Colors.grey.shade100,
+        child: Column(
+          children: [
+            Container(
+              height: 106,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(22),
               ),
             ),
             const SizedBox(height: 16),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: quickPins
-                  .map(
-                    (label) => Chip(
-                      avatar: const Icon(Icons.place, size: 18),
-                      label: Text(label),
-                      backgroundColor: Colors.white,
-                    ),
-                  )
-                  .toList(),
-            ),
-            const SizedBox(height: 20),
-            _buildMapPreview(context),
-            const SizedBox(height: 24),
-            _buildSectionTitle(context, 'Buildings'),
-            const SizedBox(height: 12),
-            Column(
-              children: buildings
-                  .map(
-                    (item) => _InfoCard(
-                      title: item['name'] as String,
-                      subtitle: item['type'] as String,
-                      trailing: item['distance'] as String,
-                      status: item['status'] as String,
-                      icon: Icons.apartment_outlined,
-                    ),
-                  )
-                  .toList(),
-            ),
-            const SizedBox(height: 20),
-            _buildSectionTitle(context, 'Emergency Points'),
-            const SizedBox(height: 12),
-            Column(
-              children: emergencyPoints
-                  .map(
-                    (item) => _InfoCard(
-                      title: item['label'] as String,
-                      subtitle: item['detail'] as String,
-                      trailing: 'Open',
-                      status: '24/7',
-                      icon: Icons.sos_outlined,
-                      accent: Colors.redAccent,
-                    ),
-                  )
-                  .toList(),
-            ),
-            const SizedBox(height: 20),
-            _buildSectionTitle(context, 'Accessibility Routes'),
-            const SizedBox(height: 12),
-            Column(
-              children: accessibilityRoutes
-                  .map(
-                    (item) => _InfoCard(
-                      title: item['label'] as String,
-                      subtitle: item['detail'] as String,
-                      trailing: 'Accessible',
-                      status: 'Verified',
-                      icon: Icons.accessible_outlined,
-                      accent: Colors.teal,
-                    ),
-                  )
-                  .toList(),
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: 4,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: 1.03,
+              ),
+              itemBuilder: (context, _) => Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                ),
+              ),
             ),
           ],
         ),
       ),
     );
   }
-
-  Widget _buildMapPreview(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        gradient: const LinearGradient(
-          colors: [Color(0xFF2962FF), Color(0xFF00BFA5)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF2962FF).withValues(alpha: 0.35),
-            blurRadius: 18,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: const [
-              Icon(Icons.map_outlined, color: Colors.white, size: 26),
-              SizedBox(width: 10),
-              Text(
-                'Live Campus Map',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 18,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Pin your destination and start indoor navigation.',
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.85)),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () {},
-                  icon: const Icon(Icons.directions_walk),
-                  label: const Text('Start Navigation'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: const Color(0xFF2962FF),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              OutlinedButton.icon(
-                onPressed: () {},
-                icon: const Icon(Icons.download_for_offline_outlined),
-                label: const Text('Offline'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.white,
-                  side: const BorderSide(color: Colors.white),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSectionTitle(BuildContext context, String title) {
-    return Text(
-      title,
-      style: Theme.of(
-        context,
-      ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
-    );
-  }
 }
 
-class _InfoCard extends StatelessWidget {
-  const _InfoCard({
-    required this.title,
-    required this.subtitle,
-    required this.trailing,
-    required this.status,
-    required this.icon,
-    this.accent,
-  });
+class _LocationCard extends StatelessWidget {
+  const _LocationCard({required this.location, required this.onTap});
 
-  final String title;
-  final String subtitle;
-  final String trailing;
-  final String status;
-  final IconData icon;
-  final Color? accent;
+  final Map<String, dynamic> location;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final color = accent ?? const Color(0xFF2962FF);
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: color.withValues(alpha: 0.12),
-          child: Icon(icon, color: color),
+    final accent = location['accent'] as Color;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: accent.withValues(alpha: 0.3), width: 1.3),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-        subtitle: Text(subtitle),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(trailing, style: const TextStyle(fontWeight: FontWeight.w600)),
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: 0.13),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(location['icon'] as IconData, color: accent),
+            ),
+            const Spacer(),
+            Text(
+              location['title'] as String,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.black87,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
             const SizedBox(height: 4),
             Text(
-              status,
-              style: TextStyle(color: Colors.grey[600], fontSize: 12),
+              location['description'] as String,
+              style: TextStyle(
+                color: Colors.grey.shade600,
+                fontWeight: FontWeight.w600,
+                fontSize: 12,
+              ),
             ),
           ],
         ),

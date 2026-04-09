@@ -1,494 +1,293 @@
-import 'dart:async';
-
-import 'package:audioplayers/audioplayers.dart';
-import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
-import 'package:url_launcher/url_launcher.dart';
 
-import 'package:og_vibes_student/screens/bursary_screen.dart';
-import 'package:og_vibes_student/screens/checklist_screen.dart';
+import 'package:og_vibes_student/screens/academic_escalation_screen.dart';
+import 'package:og_vibes_student/screens/assessments_calendar_screen.dart';
+import 'package:og_vibes_student/screens/assignment_submission_screen.dart';
+import 'package:og_vibes_student/screens/course_mate_screen.dart';
+import 'package:og_vibes_student/screens/digital_library_screen.dart';
+import 'package:og_vibes_student/screens/exam_readiness_screen.dart';
 import 'package:og_vibes_student/screens/flashcards_screen.dart';
+import 'package:og_vibes_student/screens/mark_simulator_screen.dart';
+import 'package:og_vibes_student/screens/offline_downloader_screen.dart';
+import 'package:og_vibes_student/screens/online_classes_screen.dart';
 import 'package:og_vibes_student/screens/past_papers_screen.dart';
-import 'package:og_vibes_student/screens/study_hub_screens.dart';
+import 'package:og_vibes_student/screens/timetable_screen.dart';
 import 'package:og_vibes_student/widgets/vibe_scaffold.dart';
 
-class StudyScreen extends StatefulWidget {
+class StudyScreen extends StatelessWidget {
   const StudyScreen({super.key, this.showStandaloneAppBar = false});
 
   final bool showStandaloneAppBar;
 
   @override
-  State<StudyScreen> createState() => _StudyScreenState();
-}
-
-class _StudyScreenState extends State<StudyScreen> {
-  static const _focusModeUrl =
-      'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3';
-
-  final Connectivity _connectivity = Connectivity();
-  final AudioPlayer _audioPlayer = AudioPlayer();
-  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
-  bool _isOffline = false;
-  bool _isFocusMode = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _initConnectivity();
-    _connectivitySubscription = _connectivity.onConnectivityChanged.listen((
-      results,
-    ) {
-      final status = results.isNotEmpty
-          ? results.first
-          : ConnectivityResult.none;
-      _updateOfflineStatus(status);
-    });
-  }
-
-  Future<void> _initConnectivity() async {
-    final results = await _connectivity.checkConnectivity();
-    if (!mounted) return;
-    final status = results.isNotEmpty ? results.first : ConnectivityResult.none;
-    _updateOfflineStatus(status);
-  }
-
-  void _updateOfflineStatus(ConnectivityResult result) {
-    final offline = result == ConnectivityResult.none;
-    if (offline != _isOffline) {
-      setState(() => _isOffline = offline);
-    }
-  }
-
-  @override
-  void dispose() {
-    _connectivitySubscription?.cancel();
-    _audioPlayer.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return VibeScaffold(
-      appBar: widget.showStandaloneAppBar
-          ? AppBar(title: const Text('Study'))
-          : null,
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 24, 16, 120),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildExamCountdown(),
-            const SizedBox(height: 16),
-            _buildUpNextHero(context),
-            const SizedBox(height: 16),
-            _buildFocusModeTile(),
-            const SizedBox(height: 20),
-            _buildDashboardGrid(context),
-            const SizedBox(height: 28),
-            _buildFooter(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildExamCountdown() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: const [
-          Icon(Icons.timer_outlined, color: Color(0xFFFF9800), size: 32),
-          SizedBox(width: 16),
-          Expanded(
-            child: Text(
-              '12 Days until Exams Start',
-              style: TextStyle(
-                color: Color(0xFF0D47A1), // Navy Blue
-                fontWeight: FontWeight.w700,
-                fontSize: 16,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildUpNextHero(BuildContext context) {
-    // We make this card a solid vibrant blue so the white text pops!
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(28),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [
-              Color(0xFF2962FF), // Electric Blue
-              Color(0xFF448AFF), // Lighter Blue
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          boxShadow: [
-            BoxShadow(
-              blurRadius: 20,
-              color: const Color(0xFF2962FF).withValues(alpha: 0.4),
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'UP NEXT',
-              style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                color: Colors.white.withValues(alpha: 0.8),
-                letterSpacing: 1.5,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              '14:00 • Mathematics N4',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 24,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: const [
-                  Icon(Icons.location_on, color: Colors.white, size: 16),
-                  SizedBox(width: 6),
-                  Text(
-                    'Room A22',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
+      appBar: showStandaloneAppBar ? AppBar(title: const Text('Study')) : null,
+      body: CustomScrollView(
+        physics: const BouncingScrollPhysics(),
+        slivers: <Widget>[
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 18, 16, 0),
+              child: Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  gradient: const LinearGradient(
+                    colors: <Color>[Color(0xFF0D47A1), Color(0xFF1976D2)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
-                ],
+                  boxShadow: <BoxShadow>[
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.18),
+                      blurRadius: 16,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      'Study Hub LMS',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    SizedBox(height: 6),
+                    Text(
+                      'Everything you need to learn, submit, revise, and pass.',
+                      style: TextStyle(
+                        color: Color(0xFFE3F2FD),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFocusModeTile() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
           ),
+          _sectionHeader('Core Learning & Assessments'),
+          _sectionGrid(context, <_StudyFeature>[
+            _StudyFeature(
+              title: 'Virtual Classroom',
+              subtitle: 'Live classes and recordings',
+              icon: Icons.cast_for_education,
+              color: const Color(0xFF00897B),
+              destination: const OnlineClassesScreen(),
+            ),
+            _StudyFeature(
+              title: 'Submit Assignments / PoE',
+              subtitle: 'Track ICASS and uploads',
+              icon: Icons.assignment_turned_in,
+              color: const Color(0xFF1565C0),
+              destination: const AssignmentSubmissionScreen(),
+            ),
+            _StudyFeature(
+              title: 'Assessments Calendar',
+              subtitle: 'Upcoming tests and deadlines',
+              icon: Icons.event_note_rounded,
+              color: const Color(0xFF8E24AA),
+              destination: const AssessmentsCalendarScreen(),
+            ),
+            _StudyFeature(
+              title: 'Class Timetable',
+              subtitle: 'Periods, venues, schedule',
+              icon: Icons.schedule,
+              color: const Color(0xFF0277BD),
+              destination: const TimetableScreen(),
+            ),
+          ]),
+          _sectionHeader('Study Resources & Prep'),
+          _sectionGrid(context, <_StudyFeature>[
+            _StudyFeature(
+              title: 'Digital Library',
+              subtitle: 'Textbooks and guides',
+              icon: Icons.menu_book_rounded,
+              color: const Color(0xFF3949AB),
+              destination: const DigitalLibraryScreen(),
+            ),
+            _StudyFeature(
+              title: 'Zero-Data Offline Packs',
+              subtitle: 'Download for offline study',
+              icon: Icons.download_for_offline_rounded,
+              color: const Color(0xFF00695C),
+              destination: const OfflineDownloaderScreen(),
+            ),
+            _StudyFeature(
+              title: 'N4 Flashcards',
+              subtitle: 'Quick active recall drills',
+              icon: Icons.style_rounded,
+              color: const Color(0xFF5E35B1),
+              destination: const FlashcardsScreen(),
+            ),
+            _StudyFeature(
+              title: 'Past Papers Vault',
+              subtitle: 'Practice with real papers',
+              icon: Icons.folder_copy_outlined,
+              color: const Color(0xFFEF6C00),
+              destination: const PastPapersScreen(),
+            ),
+          ]),
+          _sectionHeader('Grades, Exams & Support'),
+          _sectionGrid(context, <_StudyFeature>[
+            _StudyFeature(
+              title: 'Target Mark Simulator',
+              subtitle: 'Know your required exam score',
+              icon: Icons.calculate_rounded,
+              color: const Color(0xFF00838F),
+              destination: const MarkSimulatorScreen(),
+            ),
+            _StudyFeature(
+              title: 'Exam Readiness Checklist',
+              subtitle: 'Prepare everything before exam day',
+              icon: Icons.fact_check_rounded,
+              color: const Color(0xFF2E7D32),
+              destination: const ExamReadinessScreen(),
+            ),
+            _StudyFeature(
+              title: 'Ask for Help / Escalation',
+              subtitle: 'Request urgent support fast',
+              icon: Icons.support_agent_rounded,
+              color: const Color(0xFFC62828),
+              destination: const AcademicEscalationScreen(),
+            ),
+            _StudyFeature(
+              title: 'Course Mates Matchmaker',
+              subtitle: 'Find serious study partners',
+              icon: Icons.groups_2_rounded,
+              color: const Color(0xFF6A1B9A),
+              destination: const CourseMateScreen(),
+            ),
+          ]),
+          const SliverToBoxAdapter(child: SizedBox(height: 120)),
         ],
       ),
-      child: SwitchListTile.adaptive(
-        value: _isFocusMode,
-        onChanged: _toggleFocusMode,
-        title: const Text(
-          'Focus Mode 🎧',
-          style: TextStyle(
+    );
+  }
+
+  static SliverToBoxAdapter _sectionHeader(String title) {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 22, 16, 10),
+        child: Text(
+          title,
+          style: const TextStyle(
             color: Color(0xFF0D47A1),
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w800,
+            fontSize: 18,
           ),
         ),
-        subtitle: Text(
-          'Play Lo-Fi & Silence Notifications',
-          style: TextStyle(color: Colors.grey[600], fontSize: 13),
-        ),
-        activeTrackColor: const Color(0xFF2962FF), // Electric Blue active state
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       ),
     );
   }
 
-  Widget _buildDashboardGrid(BuildContext context) {
-    final tiles = [
-      _DashboardTileData(
-        title: _isOffline ? 'Portal (Offline)' : 'Portal',
-        icon: Icons.public,
-        color: _isOffline ? Colors.grey : const Color(0xFF7B61FF),
-        enabled: !_isOffline,
-        onTap: _isOffline ? null : () => _openPortal(context),
-      ),
-      _DashboardTileData(
-        title: 'Timetable',
-        icon: Icons.schedule_outlined,
-        color: const Color(0xFF1ED6FF),
-        onTap: () => _openTimetable(context),
-      ),
-      _DashboardTileData(
-        title: 'Past Papers',
-        icon: Icons.description_outlined,
-        color: const Color(0xFFFF9800), // Adjusted for light mode
-        onTap: () => _openPastPapers(context),
-      ),
-      _DashboardTileData(
-        title: 'Groups',
-        icon: Icons.groups_outlined,
-        color: const Color(0xFF4ADE80),
-        onTap: () => _openStudyGroups(context),
-      ),
-      _DashboardTileData(
-        title: 'Flashcards',
-        icon: Icons.style,
-        color: const Color(0xFFFF5C8D),
-        onTap: () => _openFlashcards(context),
-      ),
-      _DashboardTileData(
-        title: 'Bursaries',
-        icon: Icons.monetization_on,
-        color: const Color(0xFF00C853),
-        onTap: () => _openBursaries(context),
-      ),
-      _DashboardTileData(
-        title: 'Exam Checklist',
-        icon: Icons.check_box,
-        color: const Color(0xFF26C6DA),
-        onTap: () => _openChecklist(context),
-      ),
-      _DashboardTileData(
-        title: 'Exam Timetable',
-        icon: Icons.event_note_outlined,
-        color: const Color(0xFF6A5AE0),
-        onTap: () => _openExamTimetable(context),
-      ),
-    ];
-
-    return AnimationLimiter(
-      child: GridView.builder(
-        shrinkWrap: true,
-        itemCount: tiles.length,
-        physics: const NeverScrollableScrollPhysics(),
+  static SliverPadding _sectionGrid(
+    BuildContext context,
+    List<_StudyFeature> features,
+  ) {
+    return SliverPadding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      sliver: SliverGrid(
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 2,
-          crossAxisSpacing: 16,
-          mainAxisSpacing: 16,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
           childAspectRatio: 1.1,
         ),
-        itemBuilder: (context, index) {
-          final tile = tiles[index];
-          return AnimationConfiguration.staggeredGrid(
-            position: index,
-            columnCount: 2,
-            duration: const Duration(milliseconds: 375),
-            child: ScaleAnimation(
-              child: FadeInAnimation(child: _DashboardTile(tile: tile)),
-            ),
-          );
-        },
+        delegate: SliverChildBuilderDelegate((BuildContext context, int index) {
+          final _StudyFeature item = features[index];
+          return _StudyFeatureCard(item: item);
+        }, childCount: features.length),
       ),
-    );
-  }
-
-  Widget _buildFooter() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Success is the sum of small efforts.',
-          style: TextStyle(
-            color: Colors.grey[600],
-            fontStyle: FontStyle.italic,
-          ),
-        ),
-        const SizedBox(height: 6),
-        const Text(
-          '45 Students studying now.',
-          style: TextStyle(
-            color: Color(0xFF2962FF),
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Future<void> _toggleFocusMode(bool value) async {
-    if (value == _isFocusMode) return;
-    setState(() => _isFocusMode = value);
-    if (value) {
-      try {
-        await _audioPlayer.setReleaseMode(ReleaseMode.loop);
-        await _audioPlayer.play(UrlSource(_focusModeUrl));
-      } catch (error) {
-        if (!mounted) return;
-        setState(() => _isFocusMode = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Unable to start Focus Mode: $error')),
-        );
-      }
-    } else {
-      await _audioPlayer.pause();
-    }
-  }
-
-  Future<void> _openPortal(BuildContext context) async {
-    const portalUrl =
-        'https://ienabler.gscollege.edu.za/pls/prodi41/w99pkg.mi_login';
-    if (kIsWeb) {
-      final success = await launchUrl(Uri.parse(portalUrl));
-      if (!context.mounted) {
-        return;
-      }
-      if (!success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Unable to open portal right now.')),
-        );
-      }
-      return;
-    }
-
-    if (!context.mounted) {
-      return;
-    }
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => const PortalScreen()));
-  }
-
-  void _openTimetable(BuildContext context) {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => const TimetableScreen()));
-  }
-
-  void _openPastPapers(BuildContext context) {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => const PastPapersScreen()));
-  }
-
-  void _openStudyGroups(BuildContext context) {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => const StudyGroupFinderScreen()));
-  }
-
-  void _openFlashcards(BuildContext context) {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => const FlashcardsScreen()));
-  }
-
-  void _openBursaries(BuildContext context) {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => const BursaryScreen()));
-  }
-
-  void _openChecklist(BuildContext context) {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => const ChecklistScreen()));
-  }
-
-  void _openExamTimetable(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const ExamTimetableSeatPlanScreen()),
     );
   }
 }
 
-class _DashboardTileData {
-  const _DashboardTileData({
+class _StudyFeature {
+  const _StudyFeature({
     required this.title,
+    required this.subtitle,
     required this.icon,
     required this.color,
-    this.onTap,
-    this.enabled = true,
+    required this.destination,
   });
 
   final String title;
+  final String subtitle;
   final IconData icon;
   final Color color;
-  final VoidCallback? onTap;
-  final bool enabled;
+  final Widget destination;
 }
 
-class _DashboardTile extends StatelessWidget {
-  const _DashboardTile({required this.tile});
+class _StudyFeatureCard extends StatelessWidget {
+  const _StudyFeatureCard({required this.item});
 
-  final _DashboardTileData tile;
+  final _StudyFeature item;
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: tile.enabled ? tile.onTap : null,
-      borderRadius: BorderRadius.circular(24),
+      borderRadius: BorderRadius.circular(18),
+      onTap: () {
+        Navigator.of(
+          context,
+        ).push(MaterialPageRoute<void>(builder: (_) => item.destination));
+      },
       child: Container(
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
-          color: Colors.white, // Changed to white for light mode
-          boxShadow: [
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: item.color.withValues(alpha: 0.35),
+            width: 1.3,
+          ),
+          boxShadow: <BoxShadow>[
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
           ],
-          border: Border.all(
-            color: tile.enabled
-                ? tile.color.withValues(alpha: 0.3)
-                : Colors.grey.shade300,
-            width: 1.5,
-          ),
         ),
-        padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+          children: <Widget>[
             Container(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(9),
               decoration: BoxDecoration(
-                color: tile.color.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
+                color: item.color.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(tile.icon, color: tile.color, size: 24),
+              child: Icon(item.icon, color: item.color, size: 22),
             ),
             const Spacer(),
             Text(
-              tile.title,
+              item.title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                color: Colors.black87, // Dark text
-                fontWeight: FontWeight.w700,
-                fontSize: 16,
+                color: Color(0xFF102027),
+                fontWeight: FontWeight.w800,
+                fontSize: 14.5,
+                height: 1.2,
               ),
             ),
             const SizedBox(height: 4),
             Text(
-              tile.enabled ? 'Tap to launch' : 'Offline',
-              style: TextStyle(color: Colors.grey[600], fontSize: 12),
+              item.subtitle,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Color(0xFF607D8B),
+                fontWeight: FontWeight.w600,
+                fontSize: 11.5,
+                height: 1.25,
+              ),
             ),
           ],
         ),

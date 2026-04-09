@@ -1,5 +1,9 @@
+import 'dart:async';
+
 import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
+import 'package:shimmer/shimmer.dart';
+
 import 'package:og_vibes_student/widgets/vibe_scaffold.dart';
 
 class ChecklistScreen extends StatefulWidget {
@@ -13,21 +17,14 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
   final ConfettiController _confettiController = ConfettiController(
     duration: const Duration(seconds: 2),
   );
+  late Future<List<_ChecklistItem>> _checklistFuture;
+  List<_ChecklistItem> _items = [];
 
-  final List<String> _items = const [
-    'Identity Document (ID)',
-    'Exam Permit',
-    'Scientific Calculator',
-    'Black Pens (x2)',
-    'Pencil & Eraser',
-    'Water Bottle',
-  ];
-
-  late final Map<String, bool> _checkStates = {
-    for (final item in _items) item: false,
-  };
-
-  bool _celebrated = false;
+  @override
+  void initState() {
+    super.initState();
+    _checklistFuture = _loadChecklist();
+  }
 
   @override
   void dispose() {
@@ -35,25 +32,35 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
     super.dispose();
   }
 
-  void _toggleItem(String item, bool value) {
-    setState(() => _checkStates[item] = value);
-    final allReady = _checkStates.values.every((checked) => checked);
-    if (allReady && !_celebrated) {
-      _celebrated = true;
-      _confettiController.play();
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Ready for Exam!')));
-    } else if (!allReady && _celebrated) {
-      _celebrated = false;
-    }
+  Future<List<_ChecklistItem>> _loadChecklist() async {
+    await Future<void>.delayed(const Duration(milliseconds: 1000));
+
+    _items = [
+      _ChecklistItem(
+        title: 'Submit PoE File for Office Data Processing',
+        done: true,
+        due: 'Completed',
+      ),
+      _ChecklistItem(
+        title: 'Register for June NATED Exams',
+        done: false,
+        due: 'Due Friday',
+      ),
+      _ChecklistItem(
+        title: 'Buy N4 Maths Textbook',
+        done: false,
+        due: 'This week',
+      ),
+    ];
+
+    return _items;
   }
 
   @override
   Widget build(BuildContext context) {
     return VibeScaffold(
       appBar: AppBar(
-        title: const Text('Exam Checklist'),
+        title: const Text('Academic Checklist'),
         backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
@@ -65,38 +72,34 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFF0D47A1),
-                  Color(0xFF2962FF),
-                  Color(0xFF6200EA),
-                ],
+                colors: [Color(0xFF0D47A1), Color(0xFF2962FF), Color(0xFF6200EA)],
               ),
             ),
-            child: ListView.separated(
-              padding: const EdgeInsets.all(20),
-              itemCount: _items.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 12),
-              itemBuilder: (context, index) {
-                final label = _items[index];
-                final checked = _checkStates[label]!;
-                return CheckboxListTile(
-                  value: checked,
-                  onChanged: (value) => _toggleItem(label, value ?? false),
-                  title: Text(
-                    label,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                      decoration: checked ? TextDecoration.lineThrough : null,
+            child: FutureBuilder<List<_ChecklistItem>>(
+              future: _checklistFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState != ConnectionState.done) {
+                  return _buildLoading();
+                }
+                if (!snapshot.hasData || snapshot.hasError) {
+                  return Center(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        setState(() {
+                          _checklistFuture = _loadChecklist();
+                        });
+                      },
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Retry checklist load'),
                     ),
-                  ),
-                  checkboxShape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  side: const BorderSide(color: Colors.white70),
-                  activeColor: Colors.tealAccent,
-                  tileColor: Colors.white.withValues(alpha: 0.05),
-                  controlAffinity: ListTileControlAffinity.leading,
+                  );
+                }
+
+                return ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
+                  itemCount: _items.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 10),
+                  itemBuilder: (context, index) => _buildTile(_items[index]),
                 );
               },
             ),
@@ -113,4 +116,75 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
       ),
     );
   }
+
+  Widget _buildTile(_ChecklistItem item) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white24),
+      ),
+      child: CheckboxListTile(
+        value: item.done,
+        onChanged: (value) {
+          setState(() {
+            item.done = value ?? false;
+          });
+          if (_items.every((e) => e.done)) {
+            _confettiController.play();
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('All academic tasks completed!')),
+            );
+          }
+        },
+        title: Text(
+          item.title,
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+            decoration: item.done ? TextDecoration.lineThrough : null,
+          ),
+        ),
+        subtitle: Text(
+          item.due,
+          style: TextStyle(
+            color: item.done ? const Color(0xFF69F0AE) : Colors.amberAccent,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        activeColor: const Color(0xFF00C853),
+        checkColor: Colors.white,
+        controlAffinity: ListTileControlAffinity.leading,
+      ),
+    );
+  }
+
+  Widget _buildLoading() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
+      child: Shimmer.fromColors(
+        baseColor: Colors.white24,
+        highlightColor: Colors.white38,
+        child: ListView.separated(
+          itemCount: 3,
+          separatorBuilder: (_, _) => const SizedBox(height: 10),
+          itemBuilder: (_, _) => Container(
+            height: 92,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ChecklistItem {
+  _ChecklistItem({required this.title, required this.done, required this.due});
+
+  final String title;
+  bool done;
+  final String due;
 }

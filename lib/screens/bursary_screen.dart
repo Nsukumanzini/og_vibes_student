@@ -1,35 +1,53 @@
-import 'package:flutter/material.dart';
-import 'package:og_vibes_student/widgets/vibe_scaffold.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'dart:async';
 
-class BursaryScreen extends StatelessWidget {
+import 'package:flutter/material.dart';
+import 'package:shimmer/shimmer.dart';
+
+import 'package:og_vibes_student/widgets/vibe_scaffold.dart';
+
+class BursaryScreen extends StatefulWidget {
   const BursaryScreen({super.key});
 
-  static final List<_BursaryOpportunity> _opportunities = [
-    _BursaryOpportunity(
-      title: 'NSFAS 2025',
-      badgeLabel: 'OPEN',
-      badgeColor: Colors.greenAccent,
-      description: 'Funding for all qualifying public college students.',
-      url: 'https://www.nsfas.org.za',
-    ),
-    _BursaryOpportunity(
-      title: 'Anglo American Engineering',
-      badgeLabel: 'CLOSING SOON',
-      badgeColor: Colors.orangeAccent,
-      description:
-          'Full scholarship for electrical and mining engineering majors.',
-      url: 'https://www.angloamerican.com',
-    ),
-    _BursaryOpportunity(
-      title: 'Sasol STEM Innovators',
-      badgeLabel: 'OPEN',
-      badgeColor: Colors.greenAccent,
-      description:
-          'Targeted support for chemistry and mechanical engineering students.',
-      url: 'https://www.sasol.com',
-    ),
-  ];
+  @override
+  State<BursaryScreen> createState() => _BursaryScreenState();
+}
+
+class _BursaryScreenState extends State<BursaryScreen> {
+  late Future<List<Map<String, String>>> _bursaryFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _bursaryFuture = _loadBursaries();
+  }
+
+  Future<List<Map<String, String>>> _loadBursaries() async {
+    await Future<void>.delayed(const Duration(milliseconds: 1000));
+
+    return const [
+      {
+        'title': 'NSFAS 2026 Late Appeals',
+        'subtitle': 'Closing in 2 days, High Priority',
+        'tag': 'HIGH PRIORITY',
+        'tagColor': 'red',
+        'details': 'For students needing urgent funding reinstatement support.',
+      },
+      {
+        'title': 'MICT SETA IT Learnership',
+        'subtitle': 'Stipend: R3500/m, IT Students Only',
+        'tag': 'IT TRACK',
+        'tagColor': 'blue',
+        'details': 'Industry pathway with practical placements around Mpumalanga.',
+      },
+      {
+        'title': 'Allan Gray Orbis Foundation Fellowship',
+        'subtitle': 'Degree pathway funding',
+        'tag': 'LONG-TERM',
+        'tagColor': 'green',
+        'details': 'Leadership and tertiary degree progression support.',
+      },
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -48,14 +66,55 @@ class BursaryScreen extends StatelessWidget {
             colors: [Color(0xFF0D47A1), Color(0xFF2962FF), Color(0xFF6200EA)],
           ),
         ),
-        child: ListView.separated(
-          padding: const EdgeInsets.all(20),
-          itemCount: _opportunities.length,
-          separatorBuilder: (context, index) => const SizedBox(height: 16),
-          itemBuilder: (context, index) {
-            final item = _opportunities[index];
-            return _BursaryCard(opportunity: item);
+        child: FutureBuilder<List<Map<String, String>>>(
+          future: _bursaryFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState != ConnectionState.done) {
+              return _buildLoading();
+            }
+            if (!snapshot.hasData || snapshot.hasError) {
+              return Center(
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _bursaryFuture = _loadBursaries();
+                    });
+                  },
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Retry bursary load'),
+                ),
+              );
+            }
+
+            final opportunities = snapshot.data!;
+            return ListView.separated(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
+              itemCount: opportunities.length,
+              separatorBuilder: (_, _) => const SizedBox(height: 14),
+              itemBuilder: (context, index) => _BursaryCard(data: opportunities[index]),
+            );
           },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoading() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
+      child: Shimmer.fromColors(
+        baseColor: Colors.white24,
+        highlightColor: Colors.white38,
+        child: ListView.separated(
+          itemCount: 3,
+          separatorBuilder: (_, _) => const SizedBox(height: 14),
+          itemBuilder: (_, _) => Container(
+            height: 178,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(22),
+            ),
+          ),
         ),
       ),
     );
@@ -63,29 +122,28 @@ class BursaryScreen extends StatelessWidget {
 }
 
 class _BursaryCard extends StatelessWidget {
-  const _BursaryCard({required this.opportunity});
+  const _BursaryCard({required this.data});
 
-  final _BursaryOpportunity opportunity;
-
-  Future<void> _launch() async {
-    final uri = Uri.parse(opportunity.url);
-    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      throw Exception('Could not launch ${opportunity.url}');
-    }
-  }
+  final Map<String, String> data;
 
   @override
   Widget build(BuildContext context) {
+    final tagColor = switch (data['tagColor']) {
+      'red' => const Color(0xFFE53935),
+      'green' => const Color(0xFF2E7D32),
+      _ => const Color(0xFF2962FF),
+    };
+
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        color: Colors.white.withValues(alpha: 0.08),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+        borderRadius: BorderRadius.circular(22),
+        color: Colors.white.withValues(alpha: 0.1),
+        border: Border.all(color: Colors.white24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
-            blurRadius: 18,
+            color: Colors.black.withValues(alpha: 0.16),
+            blurRadius: 14,
             offset: const Offset(0, 8),
           ),
         ],
@@ -97,67 +155,57 @@ class _BursaryCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  opportunity.title,
+                  data['title']!,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 18,
                   ),
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: opportunity.badgeColor.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(30),
-                  border: Border.all(color: opportunity.badgeColor),
+                  color: tagColor.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: tagColor),
                 ),
                 child: Text(
-                  opportunity.badgeLabel,
+                  data['tag']!,
                   style: TextStyle(
-                    color: opportunity.badgeColor,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1,
+                    color: tagColor,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 11,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Text(
-            opportunity.description,
+            data['subtitle']!,
+            style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            data['details']!,
             style: const TextStyle(color: Colors.white70),
           ),
-          const SizedBox(height: 18),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: _launch,
+          const SizedBox(height: 14),
+          Align(
+            alignment: Alignment.centerRight,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Opening ${data['title']} details...')),
+                );
+              },
               icon: const Icon(Icons.open_in_new),
-              label: const Text('Apply Now'),
+              label: const Text('View Opportunity'),
             ),
           ),
         ],
       ),
     );
   }
-}
-
-class _BursaryOpportunity {
-  const _BursaryOpportunity({
-    required this.title,
-    required this.badgeLabel,
-    required this.badgeColor,
-    required this.description,
-    required this.url,
-  });
-
-  final String title;
-  final String badgeLabel;
-  final Color badgeColor;
-  final String description;
-  final String url;
 }

@@ -1,315 +1,249 @@
-﻿import 'package:carousel_slider/carousel_slider.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:shimmer/shimmer.dart';
+
 import 'package:og_vibes_student/widgets/vibe_scaffold.dart';
 
-class ProductDetailsScreen extends StatelessWidget {
-  const ProductDetailsScreen({super.key, required this.product});
+class ProductDetailsScreen extends StatefulWidget {
+  const ProductDetailsScreen({super.key});
 
-  final DocumentSnapshot<Map<String, dynamic>> product;
-  static const _darkWhite = Color(0xFFE0E0E0);
+  @override
+  State<ProductDetailsScreen> createState() => _ProductDetailsScreenState();
+}
+
+class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
+  late Future<Map<String, String>> _productFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _productFuture = _loadProduct();
+  }
+
+  Future<Map<String, String>> _loadProduct() async {
+    await Future<void>.delayed(const Duration(milliseconds: 800));
+
+    return const {
+      'title': 'N4 Mathematics Textbook',
+      'price': 'R 200',
+      'seller': 'Thandi M.',
+      'condition': 'Good Condition',
+      'description':
+          'Used it last semester. Has some highlighted formulas but no missing pages. Meeting at the cafeteria.',
+      'category': 'Textbooks',
+      'campus': 'Gert Sibande - Ermelo Campus',
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
-    final data = product.data() ?? {};
-    final images = (data['images'] as List?)?.cast<String>() ?? const [];
-    final title = (data['title'] as String?) ?? 'Listing';
-    final price = (data['price'] as num?)?.toDouble() ?? 0;
-    final category = data['category'] as String? ?? 'General';
-    final campus = data['sellerCampus'] as String? ?? 'Campus';
-    final condition = data['condition'] as String? ?? 'Good';
-    final description = data['description'] as String? ?? 'No description';
-    final seller = data['sellerName'] as String? ?? 'OG Seller';
-    final isNegotiable = data['isNegotiable'] == true;
-
-    final theme = Theme.of(context);
-    final textTheme = theme.textTheme.apply(
-      bodyColor: Colors.white,
-      displayColor: Colors.white,
-    );
-
     return VibeScaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        title: const Text('Listing Details'),
-      ),
-      body: Theme(
-        data: theme.copyWith(textTheme: textTheme),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.only(bottom: 80),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (images.isNotEmpty)
-                CarouselSlider(
-                  items: images
-                      .map(
-                        (url) => ClipRRect(
-                          borderRadius: BorderRadius.circular(20),
-                          child: Image.network(
-                            url,
-                            width: double.infinity,
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                      )
-                      .toList(),
-                  options: CarouselOptions(
-                    height: 260,
-                    viewportFraction: 1,
-                    enableInfiniteScroll: images.length > 1,
-                  ),
-                )
-              else
-                Container(
-                  height: 240,
-                  margin: const EdgeInsets.symmetric(horizontal: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.white24),
-                  ),
-                  alignment: Alignment.center,
-                  child: const Icon(
-                    Icons.photo,
-                    size: 48,
-                    color: Colors.white70,
-                  ),
-                ),
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(28),
-                    border: Border.all(color: Colors.white24),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: theme.textTheme.headlineSmall?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Text(
-                            price == 0
-                                ? 'FREE'
-                                : 'R ${price.toStringAsFixed(2)}',
-                            style: const TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                          if (isNegotiable) ...[
-                            const SizedBox(width: 12),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.25),
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                              child: const Text(
-                                'Negotiable',
-                                style: TextStyle(
-                                  color: Colors.black,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          _infoChip(Icons.category, category),
-                          _infoChip(Icons.school, campus),
-                          _infoChip(Icons.auto_fix_high, condition),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                      Text(
-                        'Description',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        description,
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          height: 1.4,
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Colors.white24),
-                        ),
-                        child: ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: CircleAvatar(
-                            backgroundColor: Colors.white.withValues(
-                              alpha: 0.2,
-                            ),
-                            child: Text(
-                              seller.isNotEmpty ? seller[0].toUpperCase() : 'O',
-                              style: const TextStyle(color: Colors.white),
-                            ),
-                          ),
-                          title: Text(
-                            'Seller: $seller',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          subtitle: Text(
-                            'Campus: $campus',
-                            style: const TextStyle(color: Colors.white70),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+      appBar: AppBar(title: const Text('Listing Details')),
+      body: FutureBuilder<Map<String, String>>(
+        future: _productFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return _buildLoading();
+          }
+          if (!snapshot.hasData || snapshot.hasError) {
+            return Center(
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  setState(() {
+                    _productFuture = _loadProduct();
+                  });
+                },
+                icon: const Icon(Icons.refresh),
+                label: const Text('Retry product load'),
               ),
-            ],
-          ),
-        ),
+            );
+          }
+
+          final data = snapshot.data!;
+          return SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 100),
+            child: Column(
+              children: [
+                _buildImagePlaceholder(),
+                const SizedBox(height: 12),
+                _buildDetailsCard(data),
+              ],
+            ),
+          );
+        },
       ),
       bottomNavigationBar: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Expanded(
-                child: FilledButton.icon(
-                  style: _ctaStyle(),
-                  onPressed: () => _reportProduct(context),
-                  icon: const Icon(Icons.flag_outlined, color: Colors.black),
-                  label: const Text(
-                    'Report Scam',
-                    style: TextStyle(color: Colors.black),
-                  ),
-                ),
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+          child: ElevatedButton.icon(
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Opening secure chat with seller...')),
+              );
+            },
+            icon: const Icon(Icons.chat_bubble_outline),
+            label: const Text('Message Seller'),
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: FilledButton.icon(
-                  style: _ctaStyle(),
-                  onPressed: () => _contactSeller(context, title, isNegotiable),
-                  icon: const Icon(Icons.chat_bubble, color: Colors.black),
-                  label: const Text(
-                    'Contact Seller',
-                    style: TextStyle(color: Colors.black),
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  ButtonStyle _ctaStyle() {
-    return FilledButton.styleFrom(
-      backgroundColor: _darkWhite,
-      foregroundColor: Colors.black,
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      textStyle: const TextStyle(fontWeight: FontWeight.bold),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+  Widget _buildImagePlaceholder() {
+    return Container(
+      width: double.infinity,
+      height: 230,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF2962FF), Color(0xFF00ACC1)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: const Center(
+        child: Icon(Icons.menu_book_rounded, color: Colors.white, size: 72),
+      ),
     );
   }
 
-  Widget _infoChip(IconData icon, String label) {
+  Widget _buildDetailsCard(Map<String, String> data) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.15),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 16, color: Colors.white70),
-          const SizedBox(width: 6),
-          Text(label),
+          Text(
+            data['title']!,
+            style: const TextStyle(
+              color: Colors.black87,
+              fontWeight: FontWeight.w800,
+              fontSize: 22,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            data['price']!,
+            style: const TextStyle(
+              color: Color(0xFF2962FF),
+              fontWeight: FontWeight.w800,
+              fontSize: 20,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _chip(Icons.category_outlined, data['category']!),
+              _chip(Icons.school_outlined, data['campus']!),
+              _chip(Icons.auto_fix_high, data['condition']!),
+            ],
+          ),
+          const SizedBox(height: 14),
+          const Text(
+            'Description',
+            style: TextStyle(
+              color: Colors.black87,
+              fontWeight: FontWeight.w800,
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            data['description']!,
+            style: TextStyle(
+              color: Colors.grey.shade700,
+              height: 1.35,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 14),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: CircleAvatar(
+              backgroundColor: const Color(0xFF2962FF).withValues(alpha: 0.15),
+              child: const Icon(Icons.person, color: Color(0xFF2962FF)),
+            ),
+            title: Text(
+              data['seller']!,
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+            subtitle: const Text('Trusted campus marketplace seller'),
+          ),
         ],
       ),
     );
   }
 
-  Future<void> _reportProduct(BuildContext context) async {
-    final controller = TextEditingController();
-    final reason = await showDialog<String>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Report Listing'),
-          content: TextField(
-            controller: controller,
-            decoration: const InputDecoration(hintText: 'Reason (optional)'),
-            maxLines: 2,
+  Widget _chip(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFF2962FF).withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: const Color(0xFF2962FF)),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Color(0xFF2962FF),
+              fontWeight: FontWeight.w700,
+              fontSize: 12,
+            ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, controller.text.trim()),
-              child: const Text('Report'),
-            ),
-          ],
-        );
-      },
+        ],
+      ),
     );
-
-    if (reason == null) return;
-
-    await FirebaseFirestore.instance.collection('product_reports').add({
-      'productId': product.id,
-      'reason': reason,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
-
-    if (context.mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Report submitted.')));
-    }
   }
 
-  void _contactSeller(BuildContext context, String title, bool isNegotiable) {
-    final message = isNegotiable
-        ? 'Hi, I saw your $title on OG Vibes. I would like to make an offer of R...'
-        : 'Hi, is your $title still available?';
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Seller Phone Number feature coming next update!\n$message',
+  Widget _buildLoading() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 100),
+      child: Shimmer.fromColors(
+        baseColor: Colors.grey.shade300,
+        highlightColor: Colors.grey.shade100,
+        child: Column(
+          children: [
+            Container(
+              height: 230,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              height: 320,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+              ),
+            ),
+          ],
         ),
       ),
     );

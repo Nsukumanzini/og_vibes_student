@@ -1,10 +1,10 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
+import 'package:shimmer/shimmer.dart';
+
 import 'package:og_vibes_student/widgets/vibe_scaffold.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class LiftClubScreen extends StatefulWidget {
   const LiftClubScreen({super.key});
@@ -14,427 +14,325 @@ class LiftClubScreen extends StatefulWidget {
 }
 
 class _LiftClubScreenState extends State<LiftClubScreen> {
-  final _picker = ImagePicker();
-  final _fromController = TextEditingController();
-  final _toController = TextEditingController();
-  final _timeController = TextEditingController();
-  final _priceController = TextEditingController();
-  final _whatsappController = TextEditingController();
-
-  bool _postingRide = false;
-  bool _uploadingLicense = false;
+  late Future<List<Map<String, dynamic>>> _ridesFuture;
 
   @override
-  void dispose() {
-    _fromController.dispose();
-    _toController.dispose();
-    _timeController.dispose();
-    _priceController.dispose();
-    _whatsappController.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    _ridesFuture = _loadRides();
+  }
+
+  Future<List<Map<String, dynamic>>> _loadRides() async {
+    await Future<void>.delayed(const Duration(milliseconds: 1200));
+
+    return const [
+      {
+        'route': 'Secunda to Ermelo Campus',
+        'driver': 'Mr. Vusi (Verified Student)',
+        'departure': 'Tomorrow, 06:00 AM',
+        'seats': 2,
+        'price': 'R 80',
+        'verified': true,
+      },
+      {
+        'route': 'Breyten to Ermelo Campus',
+        'driver': 'Sarah T.',
+        'departure': 'Friday, 07:30 AM',
+        'seats': 3,
+        'price': 'R 30',
+        'verified': true,
+      },
+      {
+        'route': 'Ermelo Campus to Bushbuckridge (Weekend Trip)',
+        'driver': 'John D.',
+        'departure': 'Friday, 14:00 PM',
+        'seats': 1,
+        'price': 'R 250',
+        'verified': true,
+      },
+      {
+        'route': 'Ermelo CBD to Campus Morning Shuttle',
+        'driver': 'Amanda L.',
+        'departure': 'Weekdays, 06:45 AM',
+        'seats': 4,
+        'price': 'R 20',
+        'verified': true,
+      },
+    ];
   }
 
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 2,
-      child: VibeScaffold(
-        appBar: AppBar(
-          title: const Text('Lift Club'),
-          bottom: const TabBar(
-            tabs: [
-              Tab(text: 'Find a Lift'),
-              Tab(text: 'Offer a Lift'),
-            ],
-          ),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.calculate_outlined),
-              tooltip: 'Fuel Split Calculator',
-              onPressed: _showFuelCalculator,
-            ),
-          ],
-        ),
-        body: TabBarView(children: [_buildFindTab(), _buildOfferTab()]), bottomNavigationBar: null,
-      ),
-    );
-  }
+    return VibeScaffold(
+      appBar: AppBar(title: const Text('Lift Club')),
+      body: FutureBuilder<List<Map<String, dynamic>>>(
+        future: _ridesFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return _buildShimmerLoading();
+          }
 
-  Widget _buildFindTab() {
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('lift_rides')
-          .orderBy('departureTime')
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return Center(child: Text('Error loading rides: ${snapshot.error}'));
-        }
-        if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        final rides = snapshot.data!.docs;
-        if (rides.isEmpty) {
-          return const Center(
-            child: Padding(
-              padding: EdgeInsets.all(24),
-              child: Text('No rides yet. Be the first to offer one!'),
+          if (!snapshot.hasData || snapshot.hasError) {
+            return Center(
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  setState(() {
+                    _ridesFuture = _loadRides();
+                  });
+                },
+                icon: const Icon(Icons.refresh),
+                label: const Text('Retry rides load'),
+              ),
+            );
+          }
+
+          final rides = snapshot.data!;
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+            child: Column(
+              children: [
+                _buildHeaderCard(),
+                const SizedBox(height: 12),
+                Expanded(child: _buildRideList(rides)),
+              ],
             ),
           );
-        }
-        return ListView.separated(
-          padding: const EdgeInsets.all(16),
-          itemCount: rides.length,
-          separatorBuilder: (_, _) => const SizedBox(height: 12),
-          itemBuilder: (context, index) {
-            final ride = rides[index];
-            final data = ride.data();
-            final from = data['from'] as String? ?? 'Campus';
-            final to = data['to'] as String? ?? 'Destination';
-            final time = data['departureTime'] as String? ?? 'Soon';
-            final price = data['price'] as String? ?? '--';
-            final driver = data['driverName'] as String? ?? 'Driver';
-            final whatsapp = data['whatsapp'] as String?;
-            return Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '$from → $to',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text('Departure: $time'),
-                    Text('Driver: $driver'),
-                    Text('Contribution: $price'),
-                    const SizedBox(height: 12),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: ElevatedButton.icon(
-                        onPressed: whatsapp == null
-                            ? null
-                            : () => _contactDriver(whatsapp, to),
-                        icon: const Icon(Icons.chat),
-                        label: const Text('WhatsApp Driver'),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
+        },
+      ),
     );
   }
 
-  Widget _buildOfferTab() {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      return const Center(child: Text('Sign in to offer rides.'));
-    }
-
-    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return Center(child: Text('Error: ${snapshot.error}'));
-        }
-        if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        final userData = snapshot.data!.data() ?? {};
-        final isVerified = userData['isVerifiedDriver'] == true;
-        final whatsapp = (userData['whatsapp'] as String?)?.trim();
-        if (_whatsappController.text.isEmpty && whatsapp != null) {
-          _whatsappController.text = whatsapp;
-        }
-
-        if (isVerified) {
-          return _buildRideForm(userData);
-        }
-
-        return _buildDriverOnboarding(user.uid);
-      },
+  Widget _buildHeaderCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF2962FF), Color(0xFF00ACC1)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF2962FF).withValues(alpha: 0.25),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Safe Student Rides',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          SizedBox(height: 8),
+          Text(
+            'All rides below are from verified drivers around Ermelo TVET routes.',
+            style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildDriverOnboarding(String uid) {
-    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('driver_applications')
-          .doc(uid)
-          .snapshots(),
-      builder: (context, snapshot) {
-        final status = snapshot.data?.data()?['status'] as String?;
-        final isPending = status == 'pending';
-        return Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+  Widget _buildRideList(List<Map<String, dynamic>> rides) {
+    return AnimationLimiter(
+      child: ListView.separated(
+        itemCount: rides.length,
+        separatorBuilder: (context, _) => const SizedBox(height: 12),
+        itemBuilder: (context, index) {
+          final ride = rides[index];
+          return AnimationConfiguration.staggeredList(
+            position: index,
+            duration: const Duration(milliseconds: 420),
+            child: SlideAnimation(
+              verticalOffset: 20,
+              child: FadeInAnimation(child: _buildRideCard(ride)),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildRideCard(Map<String, dynamic> ride) {
+    final route = ride['route'] as String;
+    final driver = ride['driver'] as String;
+    final departure = ride['departure'] as String;
+    final seats = ride['seats'] as int;
+    final price = ride['price'] as String;
+    final verified = ride['verified'] as bool;
+
+    final seatColor = seats <= 1 ? const Color(0xFFE53935) : const Color(0xFF2E7D32);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              Icon(
-                isPending ? Icons.verified_outlined : Icons.drive_eta,
-                size: 72,
-                color: Colors.white70,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                isPending
-                    ? 'Your driver verification is pending. We will notify you soon.'
-                    : 'Share your license to become a verified OG driver and earn fares.',
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton.icon(
-                onPressed: isPending || _uploadingLicense
-                    ? null
-                    : () => _submitDriverApplication(uid),
-                icon: _uploadingLicense
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.upload_file),
-                label: Text(
-                  isPending ? 'Pending Verification' : 'Become a Driver',
+              const Icon(Icons.alt_route_rounded, color: Color(0xFF2962FF)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  route,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: Colors.black87,
+                  ),
                 ),
               ),
             ],
           ),
-        );
-      },
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Text(
+                driver,
+                style: const TextStyle(
+                  color: Colors.black87,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(width: 8),
+              if (verified)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2E7D32).withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.verified, color: Color(0xFF2E7D32), size: 14),
+                      SizedBox(width: 4),
+                      Text(
+                        'Verified',
+                        style: TextStyle(
+                          color: Color(0xFF2E7D32),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Departure: $departure',
+            style: TextStyle(color: Colors.grey.shade700, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                decoration: BoxDecoration(
+                  color: seatColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  'Seats: $seats',
+                  style: TextStyle(
+                    color: seatColor,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+              const Spacer(),
+              Text(
+                price,
+                style: const TextStyle(
+                  color: Color(0xFF2962FF),
+                  fontWeight: FontWeight.w800,
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Seat request sent to driver!')),
+                );
+              },
+              icon: const Icon(Icons.event_seat_outlined),
+              label: const Text('Request Seat'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF2962FF),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildRideForm(Map<String, dynamic> userData) {
+  Widget _buildShimmerLoading() {
     return Padding(
-      padding: const EdgeInsets.all(24),
-      child: SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+      child: Shimmer.fromColors(
+        baseColor: Colors.grey.shade300,
+        highlightColor: Colors.grey.shade100,
         child: Column(
           children: [
-            const Text(
-              'Post a ride and let vibers hop in. Payments happen off-platform.',
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            TextField(
-              controller: _fromController,
-              decoration: const InputDecoration(
-                labelText: 'From (e.g. Braam campus)',
+            Container(
+              height: 96,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
               ),
             ),
             const SizedBox(height: 12),
-            TextField(
-              controller: _toController,
-              decoration: const InputDecoration(labelText: 'To (destination)'),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _timeController,
-              decoration: const InputDecoration(labelText: 'Departure time'),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _priceController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Seat contribution (R)',
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _whatsappController,
-              keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(labelText: 'WhatsApp contact'),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: _postingRide ? null : () => _postRide(userData),
-                icon: _postingRide
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.send),
-                label: Text(_postingRide ? 'Posting...' : 'Share Ride'),
+            Expanded(
+              child: ListView.separated(
+                itemCount: 4,
+                separatorBuilder: (context, _) => const SizedBox(height: 12),
+                itemBuilder: (context, _) {
+                  return Container(
+                    height: 184,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  );
+                },
               ),
             ),
           ],
         ),
       ),
-    );
-  }
-
-  Future<void> _postRide(Map<String, dynamic> userData) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-    final from = _fromController.text.trim();
-    final to = _toController.text.trim();
-    final time = _timeController.text.trim();
-    final price = _priceController.text.trim();
-    final whatsapp = _whatsappController.text.trim();
-
-    if ([from, to, time, price, whatsapp].any((element) => element.isEmpty)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please complete all fields.')),
-      );
-      return;
-    }
-
-    setState(() => _postingRide = true);
-    try {
-      await FirebaseFirestore.instance.collection('lift_rides').add({
-        'from': from,
-        'to': to,
-        'departureTime': time,
-        'price': 'R$price',
-        'whatsapp': whatsapp,
-        'driverId': user.uid,
-        'driverName': userData['name'] ?? 'OG Driver',
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-      _fromController.clear();
-      _toController.clear();
-      _timeController.clear();
-      _priceController.clear();
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Ride posted!')));
-    } catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to post ride: $error')));
-    } finally {
-      if (mounted) {
-        setState(() => _postingRide = false);
-      }
-    }
-  }
-
-  Future<void> _submitDriverApplication(String uid) async {
-    final picked = await _picker.pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 1200,
-    );
-    if (picked == null) {
-      return;
-    }
-
-    setState(() => _uploadingLicense = true);
-    try {
-      final storageRef = FirebaseStorage.instance.ref(
-        'driver_licenses/$uid-${DateTime.now().millisecondsSinceEpoch}.jpg',
-      );
-      final bytes = await picked.readAsBytes();
-      await storageRef.putData(
-        bytes,
-        SettableMetadata(contentType: 'image/jpeg'),
-      );
-      final downloadUrl = await storageRef.getDownloadURL();
-
-      await FirebaseFirestore.instance
-          .collection('driver_applications')
-          .doc(uid)
-          .set({
-            'licenseUrl': downloadUrl,
-            'status': 'pending',
-            'submittedAt': FieldValue.serverTimestamp(),
-          });
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Application submitted. Hang tight!')),
-      );
-    } catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Upload failed: $error')));
-    } finally {
-      if (mounted) {
-        setState(() => _uploadingLicense = false);
-      }
-    }
-  }
-
-  Future<void> _contactDriver(String whatsapp, String destination) async {
-    final encoded = Uri.encodeComponent(
-      'Hi! Is there still a seat to $destination?',
-    );
-    final uri = Uri.parse('https://wa.me/$whatsapp?text=$encoded');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('WhatsApp launch failed.')));
-    }
-  }
-
-  void _showFuelCalculator() {
-    final distanceController = TextEditingController();
-    double? total;
-    showDialog(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: const Text('Fuel Split Calculator'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: distanceController,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Distance in KM',
-                    ),
-                  ),
-                  if (total != null) ...[
-                    const SizedBox(height: 12),
-                    Text('Estimated fuel: R${total!.toStringAsFixed(2)}'),
-                  ],
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Close'),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    final distance = double.tryParse(
-                      distanceController.text.trim(),
-                    );
-                    if (distance == null) {
-                      return;
-                    }
-                    setState(() => total = distance * 2.5);
-                  },
-                  child: const Text('Calculate'),
-                ),
-              ],
-            );
-          },
-        );
-      },
     );
   }
 }

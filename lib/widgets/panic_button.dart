@@ -10,6 +10,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_phone_direct_caller/flutter_phone_direct_caller.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:og_vibes_student/utils/dialog_helpers.dart';
 import 'package:permission_handler/permission_handler.dart' as permission;
 import 'package:vibration/vibration.dart';
 
@@ -98,9 +99,13 @@ class _PanicButtonState extends State<PanicButton>
     unawaited(_requestPhonePermission());
     _holdTimer?.cancel();
     _holdTimer = Timer(_activationDuration, () async {
-      debugPrint('[PANIC] Hold duration met, activating panic mode');
+      debugPrint('[PANIC] Hold duration met, showing Coming Soon dialog (MVP)');
       _panicTriggered = true;
-      await _activatePanicMode();
+      _stopHeartbeat();
+      _progressController.reset();
+      if (mounted) {
+        await showComingSoonDialog(context, 'Campus Safety Panic Button');
+      }
     });
   }
 
