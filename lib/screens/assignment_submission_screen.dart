@@ -15,6 +15,8 @@ class AssignmentSubmissionScreen extends StatefulWidget {
 
 class _AssignmentSubmissionScreenState
     extends State<AssignmentSubmissionScreen> {
+  static const _levelOptions = ['Level 2', 'Level 3', 'Level 4'];
+  String _selectedLevel = _levelOptions.first;
   late Future<void> _initialLoad;
 
   final bool _uploadingPendingTask = false;
@@ -32,7 +34,7 @@ class _AssignmentSubmissionScreenState
       length: 3,
       child: VibeScaffold(
         appBar: AppBar(
-          title: const Text('Assignment & PoE Submission'),
+          title: Text('Assignment & PoE Submission — $_selectedLevel'),
           bottom: const TabBar(
             tabs: <Tab>[
               Tab(text: 'Pending'),
@@ -48,8 +50,44 @@ class _AssignmentSubmissionScreenState
               return _buildLoadingState();
             }
 
-            return const TabBarView(
-              children: <Widget>[_PendingTab(), _SubmittedTab(), _GradedTab()],
+            return Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                  child: SizedBox(
+                    height: 44,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: _levelOptions.length,
+                      separatorBuilder: (_, _) => const SizedBox(width: 8),
+                      itemBuilder: (context, index) {
+                        final level = _levelOptions[index];
+                        final selected = level == _selectedLevel;
+                        return ChoiceChip(
+                          label: Text(level),
+                          selected: selected,
+                          onSelected: (_) => setState(() => _selectedLevel = level),
+                          selectedColor: Colors.white,
+                          backgroundColor: Colors.white10,
+                          labelStyle: TextStyle(
+                            color: selected ? Colors.black87 : Colors.white,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: TabBarView(
+                    children: <Widget>[
+                      _PendingTab(level: _selectedLevel),
+                      _SubmittedTab(level: _selectedLevel),
+                      _GradedTab(level: _selectedLevel),
+                    ],
+                  ),
+                ),
+              ],
             );
           },
         ),
@@ -96,7 +134,9 @@ class _AssignmentSubmissionScreenState
 }
 
 class _PendingTab extends StatefulWidget {
-  const _PendingTab();
+  const _PendingTab({required this.level});
+
+  final String level;
 
   @override
   State<_PendingTab> createState() => _PendingTabState();
@@ -141,7 +181,7 @@ class _PendingTabState extends State<_PendingTab> {
       children: <Widget>[
         _SubmissionCard(
           icon: Icons.assignment,
-          title: 'Computer Practice N4 - ICASS Task 2',
+          title: '${widget.level} - Computer Practice · ICASS Task 2',
           subtitleLabel: 'Due',
           subtitleValue: 'Tomorrow, 23:59 PM',
           statusText: _submitted ? 'Submitted' : 'Not Submitted',
@@ -189,7 +229,9 @@ class _PendingTabState extends State<_PendingTab> {
 }
 
 class _SubmittedTab extends StatelessWidget {
-  const _SubmittedTab();
+  const _SubmittedTab({required this.level});
+
+  final String level;
 
   @override
   Widget build(BuildContext context) {
@@ -198,7 +240,7 @@ class _SubmittedTab extends StatelessWidget {
       children: <Widget>[
         _SubmissionCard(
           icon: Icons.assignment_turned_in,
-          title: 'Entrepreneurship N4 - Business Plan Draft',
+          title: '$level - Entrepreneurship · Business Plan Draft',
           subtitleLabel: 'Submitted',
           subtitleValue: '12 March 2026, 14:30 PM',
           statusText: 'Awaiting Grading',
@@ -230,7 +272,9 @@ class _SubmittedTab extends StatelessWidget {
 }
 
 class _GradedTab extends StatelessWidget {
-  const _GradedTab();
+  const _GradedTab({required this.level});
+
+  final String level;
 
   @override
   Widget build(BuildContext context) {
@@ -239,7 +283,7 @@ class _GradedTab extends StatelessWidget {
       children: <Widget>[
         _SubmissionCard(
           icon: Icons.assignment,
-          title: 'Mathematics N4 - Assignment 1',
+          title: '$level - Mathematics · Assignment 1',
           subtitleLabel: 'Graded by',
           subtitleValue: 'Mr. Nkosi',
           statusText: '85% (Distinction)',

@@ -9,21 +9,23 @@ import 'package:og_vibes_student/screens/home/widgets/home_bottom_navigation_bar
 import 'package:shimmer/shimmer.dart';
 
 import '../../widgets/app_drawer.dart';
-import '../../widgets/panic_button.dart';
 import '../../widgets/post_card.dart';
 import '../../widgets/vibe_scaffold.dart';
-import '../../utils/dialog_helpers.dart';
 import 'announcements_screen.dart';
-import 'campus_hub_screens.dart';
 import 'create_post_screen.dart';
-import 'messages_screen.dart';
-import 'study_screen.dart';
-import 'accredited_accommodation_screen.dart';
-import 'cafeteria_screen.dart';
-import 'document_wallet_screen.dart';
+import 'events_screen.dart';
 import 'lost_and_found_screen.dart';
-import 'tutor_directory_screen.dart';
-import 'whistleblower_screen.dart';
+import 'messages_screen.dart';
+import 'document_wallet_screen.dart';
+import 'my_campus_friends_screen.dart';
+import 'assignment_submission_screen.dart';
+import 'assessments_calendar_screen.dart';
+import 'portal_screen.dart';
+import 'study_group_finder_screen.dart';
+import 'study_resources_screen.dart';
+import 'timetable_screen.dart';
+import 'trivia_game_screen.dart';
+import 'online_classes_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -131,7 +133,9 @@ class _HomeScreenState extends State<HomeScreen> {
       floatingActionButton: _currentTab == 0 ? _buildPostFab() : null,
       bottomNavigationBar: HomeBottomNavigationBar(
         currentIndex: _currentTab,
-        onTap: (index) => setState(() => _currentTab = index),
+        onTap: (index) {
+          setState(() => _currentTab = index);
+        },
       ),
       body: Stack(
         children: [
@@ -139,22 +143,13 @@ class _HomeScreenState extends State<HomeScreen> {
             index: _currentTab,
             children: [
               _buildFeedTab(),
-              _buildCampusHubTab(),
+              _buildStudyHubTab(),
               const AnnouncementsScreen(),
-              const StudyScreen(),
+              _buildStudyTab(),
               const MessagesScreen(),
             ],
           ),
-          // Locked Panic Button for MVP testing
-          Positioned(
-            bottom: 100, 
-            right: 20, 
-            child: GestureDetector(
-              onLongPress: () => showComingSoonDialog(context, 'SOS Panic Button'),
-              onTap: () => showComingSoonDialog(context, 'SOS Panic Button'),
-              child: const PanicButton(),
-            ),
-          ),
+
         ],
       ),
     );
@@ -277,8 +272,8 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ================= CAMPUS HUB TAB =================
-  Widget _buildCampusHubTab() {
+  // ================= STUDY HUB TAB =================
+  Widget _buildStudyHubTab() {
     return CustomScrollView(
       physics: const BouncingScrollPhysics(),
       slivers: [
@@ -289,7 +284,7 @@ class _HomeScreenState extends State<HomeScreen> {
           flexibleSpace: FlexibleSpaceBar(
             titlePadding: const EdgeInsets.only(left: 20, bottom: 16),
             title: Text(
-              'Campus Hub',
+              'Study Hub',
               style: TextStyle(
                 fontWeight: FontWeight.w800,
                 color: Theme.of(context).colorScheme.onSurface,
@@ -304,7 +299,7 @@ class _HomeScreenState extends State<HomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Powered by OG Technologies',
+                  'Core study tools for your MVP experience',
                   style: TextStyle(
                     color: Theme.of(context).primaryColor,
                     fontWeight: FontWeight.w600,
@@ -312,17 +307,53 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                
-                _buildSectionHeader('Essential Tools'),
-                _buildHubGrid(_getEssentialCards()),
-                const SizedBox(height: 32),
-                
-                _buildSectionHeader('Student Life'),
-                _buildHubGrid(_getStudentLifeCards()),
-                const SizedBox(height: 32),
 
-                _buildSectionHeader('Services & Support'),
-                _buildHubGrid(_getServiceCards()),
+                _buildSectionHeader('Study Hub'),
+                _buildHubGrid(_getStudyHubCards()),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStudyTab() {
+    return CustomScrollView(
+      physics: const BouncingScrollPhysics(),
+      slivers: [
+        SliverAppBar(
+          pinned: true,
+          expandedHeight: 100.0,
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          flexibleSpace: FlexibleSpaceBar(
+            titlePadding: const EdgeInsets.only(left: 20, bottom: 16),
+            title: Text(
+              'Campus Life',
+              style: TextStyle(
+                fontWeight: FontWeight.w800,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+            ),
+          ),
+        ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Campus Life features for student services and campus essentials.',
+                  style: TextStyle(
+                    color: Theme.of(context).primaryColor,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                _buildSectionHeader('Campus Services'),
+                _buildHubGrid(_getStudyTabCards()),
               ],
             ),
           ),
@@ -355,7 +386,7 @@ class _HomeScreenState extends State<HomeScreen> {
       itemBuilder: (context, index) {
         final card = cards[index];
         final gradientColors = card.gradientColors?.map((color) => color.withOpacity(0.9)).toList();
-        
+
         return Card(
           elevation: 4,
           shadowColor: card.color.withOpacity(0.3),
@@ -372,59 +403,28 @@ class _HomeScreenState extends State<HomeScreen> {
                 borderRadius: BorderRadius.circular(16),
               ),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              child: Stack(
+              child: Row(
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: gradientColors != null ? Colors.white.withOpacity(0.2) : card.color.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Icon(card.icon, color: gradientColors != null ? Colors.white : card.color, size: 20),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          card.title,
-                          maxLines: 2,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 13,
-                            color: gradientColors != null ? Colors.white : Colors.black87,
-                          ),
-                        ),
-                      ),
-                    ],
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: gradientColors != null ? Colors.white.withOpacity(0.2) : card.color.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(card.icon, color: gradientColors != null ? Colors.white : card.color, size: 20),
                   ),
-                  // Live Badge Listener for Friend Requests
-                  if (card.title == 'Friend Requests' && _auth.currentUser != null)
-                    Positioned(
-                      top: 0,
-                      right: 0,
-                      child: StreamBuilder<QuerySnapshot>(
-                        stream: _firestore
-                            .collection('friend_requests')
-                            .where('to', isEqualTo: _auth.currentUser!.uid)
-                            .where('status', isEqualTo: 'pending')
-                            .snapshots(),
-                        builder: (context, snapshot) {
-                          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const SizedBox.shrink();
-                          return Container(
-                            padding: const EdgeInsets.all(5),
-                            decoration: const BoxDecoration(
-                              color: Colors.redAccent,
-                              shape: BoxShape.circle,
-                            ),
-                            child: Text(
-                              '${snapshot.data!.docs.length}',
-                              style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
-                            ),
-                          );
-                        },
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      card.title,
+                      maxLines: 2,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                        color: gradientColors != null ? Colors.white : Colors.black87,
                       ),
                     ),
+                  ),
                 ],
               ),
             ),
@@ -432,6 +432,100 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       },
     );
+  }
+
+  List<_HubCardInfo> _getStudyHubCards() {
+    return [
+      _HubCardInfo(
+        title: 'Study Resources',
+        icon: Icons.menu_book_rounded,
+        color: Colors.indigo,
+        gradientColors: const [Color(0xFF3F51B5), Color(0xFF5C6BC0)],
+        onTap: (context) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const StudyResourcesScreen())),
+      ),
+      _HubCardInfo(
+        title: 'Study Group',
+        icon: Icons.group_work_rounded,
+        color: Colors.teal,
+        gradientColors: const [Color(0xFF00897B), Color(0xFF26A69A)],
+        onTap: (context) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const StudyGroupFinderScreen())),
+      ),
+      _HubCardInfo(
+        title: 'Timetable',
+        icon: Icons.event_note_rounded,
+        color: Colors.deepPurple,
+        gradientColors: const [Color(0xFF4527A0), Color(0xFF7E57C2)],
+        onTap: (context) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TimetableScreen())),
+      ),
+      _HubCardInfo(
+        title: 'Online Classes',
+        icon: Icons.cast_for_education_rounded,
+        color: Colors.blueAccent,
+        gradientColors: const [Color(0xFF039BE5), Color(0xFF29B6F6)],
+        onTap: (context) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const OnlineClassesScreen())),
+      ),
+      _HubCardInfo(
+        title: 'Portal',
+        icon: Icons.language_rounded,
+        color: Colors.green,
+        gradientColors: const [Color(0xFF2E7D32), Color(0xFF43A047)],
+        onTap: (context) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PortalScreen())),
+      ),
+      _HubCardInfo(
+        title: 'Assessment Submission',
+        icon: Icons.upload_file,
+        color: Colors.orange,
+        gradientColors: const [Color(0xFFF57C00), Color(0xFFFFB300)],
+        onTap: (context) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AssignmentSubmissionScreen())),
+      ),
+      _HubCardInfo(
+        title: 'Assessment Schedule',
+        icon: Icons.calendar_month_rounded,
+        color: Colors.pink,
+        gradientColors: const [Color(0xFFD81B60), Color(0xFFE91E63)],
+        onTap: (context) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AssessmentsCalendarScreen())),
+      ),
+      _HubCardInfo(
+        title: 'Quiz',
+        icon: Icons.quiz_rounded,
+        color: Colors.redAccent,
+        gradientColors: const [Color(0xFFC62828), Color(0xFFD32F2F)],
+        onTap: (context) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TriviaGameScreen())),
+      ),
+    ];
+  }
+
+  List<_HubCardInfo> _getStudyTabCards() {
+    return [
+      _HubCardInfo(
+        title: 'Events',
+        icon: Icons.event,
+        color: Colors.pinkAccent,
+        gradientColors: const [Color(0xFFE91E63), Color(0xFFF06292)],
+        onTap: (context) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const EventsScreen())),
+      ),
+      _HubCardInfo(
+        title: 'Lost & Found',
+        icon: Icons.search_rounded,
+        color: Colors.brown,
+        gradientColors: const [Color(0xFF6D4C41), Color(0xFF8D6E63)],
+        onTap: (context) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const LostAndFoundScreen())),
+      ),
+      _HubCardInfo(
+        title: 'Find Friends',
+        icon: Icons.person_search_rounded,
+        color: Colors.deepPurpleAccent,
+        gradientColors: const [Color(0xFF6A1B9A), Color(0xFF8E24AA)],
+        onTap: (context) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MyCampusFriendsScreen())),
+      ),
+      _HubCardInfo(
+        title: 'Document Wallet',
+        icon: Icons.badge,
+        color: Colors.blueGrey,
+        gradientColors: const [Color(0xFF37474F), Color(0xFF546E7A)],
+        onTap: (context) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const DocumentWalletScreen())),
+      ),
+    ];
   }
 
   // ================= FEED HELPERS & BUILDERS =================
@@ -546,34 +640,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ================= HUB DATA =================
-  List<_HubCardInfo> _getEssentialCards() {
-    return [
-      _HubCardInfo(title: 'Digital ID', icon: Icons.badge, color: Colors.blueAccent, onTap: (c) => showComingSoonDialog(c, 'Digital ID')),
-      _HubCardInfo(title: 'My Grades', icon: Icons.school, color: const Color(0xFF2962FF), onTap: (c) => showComingSoonDialog(c, 'Grades')),
-    ];
-  }
-
-  List<_HubCardInfo> _getStudentLifeCards() {
-    return [
-      _HubCardInfo(title: 'Events', icon: Icons.event, color: Colors.pinkAccent, onTap: (c) => Navigator.of(c).push(MaterialPageRoute(builder: (_) => const EventsScreen()))),
-      _HubCardInfo(title: 'Clubs & Socs', icon: Icons.groups, color: Colors.purple, onTap: (c) => showComingSoonDialog(c, 'Clubs & Societies')),
-      _HubCardInfo(title: 'SRC Voting', icon: Icons.how_to_vote, color: Colors.green, onTap: (c) => showComingSoonDialog(c, 'SRC Voting Booth')),
-    ];
-  }
-
-  List<_HubCardInfo> _getServiceCards() {
-    return [
-      _HubCardInfo(title: 'Anonymous Whistleblower', icon: Icons.security, color: Colors.red.shade800, onTap: (c) => Navigator.of(c).push(MaterialPageRoute(builder: (_) => const WhistleblowerScreen()))),
-      _HubCardInfo(title: 'Peer Tutor Directory', icon: Icons.menu_book, color: Colors.blue.shade800, onTap: (c) => Navigator.of(c).push(MaterialPageRoute(builder: (_) => const TutorDirectoryScreen()))),
-      _HubCardInfo(title: 'Secure Document Wallet', icon: Icons.badge, color: Colors.blueGrey.shade700, onTap: (c) => Navigator.of(c).push(MaterialPageRoute(builder: (_) => const DocumentWalletScreen()))),
-      _HubCardInfo(title: 'Marketplace', icon: Icons.storefront, color: Colors.teal, onTap: (c) => showComingSoonDialog(c, 'Marketplace')),
-      _HubCardInfo(title: 'Lift Club', icon: Icons.directions_car, color: Colors.orange, onTap: (c) => showComingSoonDialog(c, 'Lift Club')),
-      _HubCardInfo(title: 'Accredited Accommodations', icon: Icons.verified_user, color: Colors.indigo, onTap: (c) => Navigator.of(c).push(MaterialPageRoute(builder: (_) => const AccreditedAccommodationScreen()))),
-      _HubCardInfo(title: 'Cafeteria Pre-Orders', icon: Icons.fastfood, color: Colors.deepOrange, onTap: (c) => Navigator.of(c).push(MaterialPageRoute(builder: (_) => const CafeteriaScreen()))),
-      _HubCardInfo(title: 'Lost & Found', icon: Icons.search_rounded, color: Colors.brown.shade600, onTap: (c) => Navigator.of(c).push(MaterialPageRoute(builder: (_) => const LostAndFoundScreen()))),
-    ];
-  }
 }
 
 class _HubCardInfo {

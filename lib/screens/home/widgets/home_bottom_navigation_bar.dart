@@ -26,7 +26,7 @@ class HomeBottomNavigationBar extends StatelessWidget {
         ),
         const BottomNavigationBarItem(
           icon: Icon(Icons.dashboard_customize_outlined),
-          label: 'Hub',
+          label: 'Academic',
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.notifications_none, color: Theme.of(context).colorScheme.secondary),
@@ -38,7 +38,7 @@ class HomeBottomNavigationBar extends StatelessWidget {
         ),
         const BottomNavigationBarItem(
           icon: Icon(Icons.school_outlined),
-          label: 'Study',
+          label: 'Campus Life',
         ),
         const BottomNavigationBarItem(
           icon: Icon(Icons.chat_bubble_outline),

@@ -59,6 +59,8 @@ class _StudyGroupFinderScreenState extends State<StudyGroupFinderScreen> {
   ];
 
   String _selectedDept = 'All';
+  static const _levelOptions = ['Level 2', 'Level 3', 'Level 4'];
+  String _selectedLevel = _levelOptions.first;
 
   @override
   Widget build(BuildContext context) {
@@ -68,9 +70,9 @@ class _StudyGroupFinderScreenState extends State<StudyGroupFinderScreen> {
 
     return VibeScaffold(
       appBar: AppBar(
-        title: const Text(
-          'Collaboration Lobby',
-          style: TextStyle(color: Colors.white),
+        title: Text(
+          'Collaboration Lobby — $_selectedLevel',
+          style: const TextStyle(color: Colors.white),
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -89,7 +91,9 @@ class _StudyGroupFinderScreenState extends State<StudyGroupFinderScreen> {
           child: Column(
             children: [
               _SkillMatcherCTA(onTap: _showSkillMatcherDialog),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
+              _buildLevelSelector(),
+              const SizedBox(height: 12),
               _DepartmentFilter(
                 departments: _departments,
                 selectedDept: _selectedDept,
@@ -118,13 +122,29 @@ class _StudyGroupFinderScreenState extends State<StudyGroupFinderScreen> {
   }
 
   Future<void> _showSkillMatcherDialog() async {
-    const subjects = [
-      'Math N4',
-      'Engineering Science',
-      'Financial Accounting',
-      'Tourism Pitch',
-      'Office Admin Suite',
-    ];
+    final subjects = _selectedLevel == 'Level 2'
+        ? [
+            'English',
+            'Life Skills',
+            'ICT',
+            'Introduction to Information Systems (IIS)',
+            'Introduction to System Development (ISD)',
+          ]
+        : _selectedLevel == 'Level 3'
+            ? [
+                'English',
+                'Life Skills',
+                'ICT',
+                'System Analysis and Design (SAD)',
+                'Principles of Computer Programming (PCP)',
+              ]
+            : [
+                'English',
+                'Life Skills',
+                'ICT',
+                'System Analysis and Design (SAD)',
+                'Computer Programming (CP)',
+              ];
 
     await showDialog<void>(
       context: context,
@@ -147,6 +167,32 @@ class _StudyGroupFinderScreenState extends State<StudyGroupFinderScreen> {
       },
     );
   }
+
+  Widget _buildLevelSelector() {
+    return SizedBox(
+      height: 44,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: _levelOptions.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final level = _levelOptions[index];
+          final selected = level == _selectedLevel;
+          return ChoiceChip(
+            label: Text(level),
+            selected: selected,
+            onSelected: (_) => setState(() => _selectedLevel = level),
+            selectedColor: Colors.white,
+            backgroundColor: Colors.white10,
+            labelStyle: TextStyle(
+              color: selected ? Colors.black87 : Colors.white,
+              fontWeight: FontWeight.w700,
+            ),
+          );
+        },
+      ),
+    );
+  }
 }
 
 class _SkillMatcherCTA extends StatelessWidget {
@@ -162,12 +208,12 @@ class _SkillMatcherCTA extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.12),
+          color: Colors.white.withOpacity(0.12),
           borderRadius: BorderRadius.circular(18),
           border: Border.all(color: Colors.white24),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.25),
+              color: Colors.black.withOpacity(0.25),
               blurRadius: 20,
               offset: const Offset(0, 10),
             ),
@@ -224,7 +270,7 @@ class _DepartmentFilter extends StatelessWidget {
             backgroundColor: Colors.white10,
             side: BorderSide(color: selected ? Colors.white : Colors.white24),
             labelStyle: TextStyle(
-              color: Colors.white.withValues(alpha: selected ? 1 : 0.7),
+              color: Colors.white.withOpacity(selected ? 1 : 0.7),
               fontWeight: FontWeight.w600,
             ),
           );
@@ -244,12 +290,12 @@ class _GroupCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.15),
+        color: Colors.white.withOpacity(0.15),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: Colors.white30),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
+            color: Colors.black.withOpacity(0.2),
             blurRadius: 24,
             offset: const Offset(0, 12),
           ),

@@ -13,38 +13,80 @@ class TimetableScreen extends StatefulWidget {
 }
 
 class _TimetableScreenState extends State<TimetableScreen> {
+  static const _levelOptions = ['Level 2', 'Level 3', 'Level 4'];
+  String _selectedLevel = _levelOptions.first;
+
   late Future<List<Map<String, String>>> _scheduleFuture;
 
   @override
   void initState() {
     super.initState();
-    _scheduleFuture = _loadMondaySchedule();
+    _scheduleFuture = _loadSchedule(_selectedLevel);
   }
 
-  Future<List<Map<String, String>>> _loadMondaySchedule() async {
-    await Future<void>.delayed(const Duration(milliseconds: 1000));
+  Future<List<Map<String, String>>> _loadSchedule(String level) async {
+    await Future<void>.delayed(const Duration(milliseconds: 700));
 
-    return const [
+    if (level == 'Level 2') {
+      return [
+        {
+          'time': '08:00 AM - 09:30 AM',
+          'subject': 'English',
+          'location': 'Room 12',
+          'lecturer': 'Ms. Dlamini',
+          'badge': 'Core',
+        },
+        {
+          'time': '10:00 AM - 11:30 AM',
+          'subject': 'ICT',
+          'location': 'IT Lab 1',
+          'lecturer': 'Mr. Nkosi',
+          'badge': 'Practical',
+        },
+        {
+          'time': '13:00 PM - 14:30 PM',
+          'subject': 'Mathematics',
+          'location': 'Room 15',
+          'lecturer': 'Ms. Patel',
+          'badge': 'Theory',
+        },
+      ];
+    }
+
+    if (level == 'Level 3') {
+      return [
+        {
+          'time': '08:00 AM - 10:00 AM',
+          'subject': 'System Analysis and Design (SAD)',
+          'location': 'Room 21',
+          'lecturer': 'Mr. Moyo',
+          'badge': 'Lecture',
+        },
+        {
+          'time': '10:30 AM - 12:00 PM',
+          'subject': 'Principles of Computer Programming (PCP)',
+          'location': 'IT Lab 3',
+          'lecturer': 'Ms. Naidoo',
+          'badge': 'Practical',
+        },
+      ];
+    }
+
+    // Level 4
+    return [
       {
-        'time': '08:00 AM - 10:00 AM',
-        'subject': 'Computer Practice N4',
-        'location': 'Room 15',
-        'lecturer': 'Mr. Nkosi',
-        'badge': 'Morning Session',
+        'time': '09:00 AM - 11:00 AM',
+        'subject': 'Computer Programming (CP)',
+        'location': 'Room 25',
+        'lecturer': 'Dr. Sibanda',
+        'badge': 'Lecture',
       },
       {
-        'time': '10:30 AM - 12:30 PM',
-        'subject': 'Entrepreneurship & Business Management',
-        'location': 'Block B',
-        'lecturer': 'Mrs. Venter',
-        'badge': 'Core Module',
-      },
-      {
-        'time': '13:00 PM - 15:00 PM',
-        'subject': 'Office Data Processing',
-        'location': 'IT Lab 2',
-        'lecturer': 'Department Team',
-        'badge': 'Lab Practical',
+        'time': '11:30 AM - 13:00 PM',
+        'subject': 'Data Communication and Network (DCN)',
+        'location': 'Network Lab',
+        'lecturer': 'Mr. Peters',
+        'badge': 'Lab',
       },
     ];
   }
@@ -77,7 +119,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
                 child: ElevatedButton.icon(
                   onPressed: () {
                     setState(() {
-                      _scheduleFuture = _loadMondaySchedule();
+                      _scheduleFuture = _loadSchedule(_selectedLevel);
                     });
                   },
                   icon: const Icon(Icons.refresh),
@@ -87,19 +129,61 @@ class _TimetableScreenState extends State<TimetableScreen> {
             }
 
             final sessions = snapshot.data!;
-            return ListView.builder(
-              padding: const EdgeInsets.fromLTRB(18, 20, 18, 100),
-              itemCount: sessions.length + 1,
-              itemBuilder: (context, index) {
-                if (index == 0) {
-                  return _buildHeader();
-                }
-                final session = sessions[index - 1];
-                return _SessionCard(session: session, index: index - 1);
-              },
+            return Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 20, 18, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildLevelSelector(),
+                      const SizedBox(height: 12),
+                      _buildHeader(),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(18, 12, 18, 100),
+                    itemCount: sessions.length,
+                    itemBuilder: (context, index) => _SessionCard(session: sessions[index], index: index),
+                  ),
+                ),
+              ],
             );
           },
         ),
+      ),
+    );
+  }
+
+  Widget _buildLevelSelector() {
+    return SizedBox(
+      height: 44,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: _levelOptions.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final level = _levelOptions[index];
+          final selected = level == _selectedLevel;
+          return ChoiceChip(
+            label: Text(level),
+            selected: selected,
+            onSelected: (_) {
+              setState(() {
+                _selectedLevel = level;
+                _scheduleFuture = _loadSchedule(_selectedLevel);
+              });
+            },
+            selectedColor: Colors.white,
+            backgroundColor: Colors.white10,
+            labelStyle: TextStyle(
+              color: selected ? Colors.black87 : Colors.white,
+              fontWeight: FontWeight.w700,
+            ),
+          );
+        },
       ),
     );
   }
