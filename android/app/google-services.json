@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "949237855418",
+    "project_id": "og-vibes-1f15c",
+    "storage_bucket": "og-vibes-1f15c.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:949237855418:android:a9ea44a58349956bfa3e83",
+        "android_client_info": {
+          "package_name": "com.example.og_vibes_student"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDcbLLOdJEfNgslQn8TuW1vFe3sYNpgMUI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
