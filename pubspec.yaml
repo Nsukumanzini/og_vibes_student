@@ -81,6 +81,7 @@ dependencies:
   timeago: ^3.6.1
   percent_indicator: ^4.2.3
   syncfusion_flutter_pdfviewer: ^31.1.21
+  path: ^1.9.1
 
 
 dependency_overrides:

@@ -6,12 +6,10 @@ import 'package:url_launcher/url_launcher.dart';
 import '../screens/helpful_contacts_screen.dart';
 import '../screens/login_screen.dart';
 import '../screens/notification_settings_screen.dart';
-import '../screens/nsfas_check_screen.dart';
 import '../screens/profile_screen.dart';
-import '../screens/src_help_desk_screen.dart';
 import '../screens/settings_screen.dart';
 import '../screens/suggestion_box_screen.dart';
-import '../screens/tutor_application_screen.dart';
+import '../screens/whistleblower_screen.dart';
 import '../screens/whats_new_screen.dart';
 
 class AppDrawer extends StatefulWidget {
@@ -171,24 +169,6 @@ class _AppDrawerState extends State<AppDrawer> {
                 ),
                 ListTile(
                   leading: const Icon(
-                    Icons.phone_in_talk,
-                    color: Colors.white70,
-                  ),
-                  title: const Text(
-                    'Helpful Contacts',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                  onTap: () {
-                    Navigator.of(context).pop();
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const HelpfulContactsScreen(),
-                      ),
-                    );
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(
                     Icons.circle_notifications,
                     color: Colors.white70,
                   ),
@@ -207,51 +187,36 @@ class _AppDrawerState extends State<AppDrawer> {
                 ),
                 ListTile(
                   leading: const Icon(
-                    Icons.account_balance_wallet,
+                    Icons.phone_in_talk,
                     color: Colors.white70,
                   ),
                   title: const Text(
-                    '💰 NSFAS Status',
+                    'Helpful Contacts',
                     style: TextStyle(color: Colors.white),
                   ),
                   onTap: () {
                     Navigator.of(context).pop();
                     Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (_) => const NsfasCheckScreen(),
-                      ),
-                    );
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.school, color: Colors.white70),
-                  title: const Text(
-                    '🎓 Become a Tutor',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                  onTap: () {
-                    Navigator.of(context).pop();
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const TutorApplicationScreen(),
+                        builder: (_) => const HelpfulContactsScreen(),
                       ),
                     );
                   },
                 ),
                 ListTile(
                   leading: const Icon(
-                    Icons.support_agent,
+                    Icons.bug_report_outlined,
                     color: Colors.white70,
                   ),
                   title: const Text(
-                    '📢 SRC Help Desk',
+                    'Report a Problem',
                     style: TextStyle(color: Colors.white),
                   ),
                   onTap: () {
                     Navigator.of(context).pop();
                     Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (_) => const SrcHelpDeskScreen(),
+                        builder: (_) => const WhistleblowerScreen(),
                       ),
                     );
                   },

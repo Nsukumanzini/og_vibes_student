@@ -54,16 +54,16 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     return VibeScaffold(
       appBar: AppBar(
         titleSpacing: 0,
-        title: const Column(
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'N4 Maths Distinction Squad',
-              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+              widget.chatTitle ?? 'Private Chat',
+              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
             ),
-            SizedBox(height: 2),
-            Text(
-              '6 Members',
+            const SizedBox(height: 2),
+            const Text(
+              'Private chat with your friend',
               style: TextStyle(
                 fontWeight: FontWeight.w600,
                 fontSize: 12,
@@ -74,14 +74,54 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         ),
         actions: [
           IconButton(
-            tooltip: 'Start group call',
-            onPressed: () => _showOfflineSnack('Starting group study call...'),
-            icon: const Icon(Icons.videocam),
+            tooltip: 'View profile',
+            onPressed: _viewProfile,
+            icon: const Icon(Icons.person_outline),
+          ),
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              if (value == 'Delete') {
+                _confirmDeleteChat();
+              } else if (value == 'Report') {
+                _reportChat();
+              }
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem<String>(
+                value: 'Delete',
+                child: Text('Delete Chat'),
+              ),
+              PopupMenuItem<String>(
+                value: 'Report',
+                child: Text('Report Chat'),
+              ),
+            ],
           ),
         ],
       ),
       body: Column(
         children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            color: const Color(0xFFE3F2FD),
+            child: Row(
+              children: [
+                const Icon(Icons.lock_outline, color: Color(0xFF1565C0), size: 18),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'This chat is private and visible only to you and ${widget.chatTitle ?? 'your friend'}.',
+                    style: const TextStyle(
+                      color: Color(0xFF1565C0),
+                      fontSize: 13,
+                      height: 1.35,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.fromLTRB(12, 16, 12, 12),
@@ -96,6 +136,83 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         ],
       ),
     );
+  }
+
+  void _viewProfile() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Opening profile for ${widget.chatTitle ?? 'your friend'}...'),
+      ),
+    );
+  }
+
+  Future<void> _confirmDeleteChat() async {
+    final choice = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Delete chat'),
+          content: const Text('This will remove the chat history for you. Continue?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (!mounted) return;
+
+    if (choice == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Chat deleted with ${widget.chatTitle ?? 'your friend'}.'),
+        ),
+      );
+      Navigator.of(context).pop();
+    }
+  }
+
+  Future<void> _reportChat() async {
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return SimpleDialog(
+          title: const Text('Report Chat'),
+          children: [
+            SimpleDialogOption(
+              onPressed: () => Navigator.of(context).pop('Inappropriate messages'),
+              child: const Text('Inappropriate messages'),
+            ),
+            SimpleDialogOption(
+              onPressed: () => Navigator.of(context).pop('Harassment or abuse'),
+              child: const Text('Harassment or abuse'),
+            ),
+            SimpleDialogOption(
+              onPressed: () => Navigator.of(context).pop('Spam or phishing'),
+              child: const Text('Spam or phishing'),
+            ),
+            SimpleDialogOption(
+              onPressed: () => Navigator.of(context).pop(null),
+              child: const Text('Cancel'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (!mounted) return;
+
+    if (reason != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Reported chat: $reason')),
+      );
+    }
   }
 
   Widget _buildInputBar() {
@@ -182,7 +299,7 @@ class _ChatBubble extends StatelessWidget {
       alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
-        constraints: const BoxConstraints(maxWidth: 300),
+        constraints: const BoxConstraints(maxWidth: 320),
         child: Column(
           crossAxisAlignment: mine
               ? CrossAxisAlignment.end
@@ -201,9 +318,9 @@ class _ChatBubble extends StatelessWidget {
                 ),
               ),
             Container(
-              padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
               decoration: BoxDecoration(
-                color: mine ? const Color(0xFF1565C0) : const Color(0xFFF0F2F5),
+                color: mine ? const Color(0xFF0D47A1) : const Color(0xFFF4F7FB),
                 borderRadius: BorderRadius.only(
                   topLeft: const Radius.circular(16),
                   topRight: const Radius.circular(16),
@@ -212,9 +329,9 @@ class _ChatBubble extends StatelessWidget {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
                   ),
                 ],
               ),
@@ -225,20 +342,20 @@ class _ChatBubble extends StatelessWidget {
                     Text(
                       message['text'] as String,
                       style: TextStyle(
-                        color: mine ? Colors.white : const Color(0xFF1A1A1A),
+                        color: mine ? Colors.white : const Color(0xFF1E293B),
                         height: 1.35,
                         fontWeight: FontWeight.w500,
                       ),
                     )
                   else
                     _AttachmentBubbleContent(mine: mine, message: message),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 8),
                   Align(
                     alignment: Alignment.centerRight,
                     child: Text(
                       time,
                       style: TextStyle(
-                        color: mine ? Colors.white70 : const Color(0xFF78909C),
+                        color: mine ? Colors.white70 : const Color(0xFF6B7280),
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                       ),

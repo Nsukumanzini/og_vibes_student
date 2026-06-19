@@ -3,7 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
 
-import 'package:og_vibes_student/screens/chat_detail_screen.dart';
+import 'chat_detail_screen.dart';
+import 'my_campus_friends_screen.dart';
 import 'package:og_vibes_student/widgets/vibe_scaffold.dart';
 
 class MessagesScreen extends StatefulWidget {
@@ -27,52 +28,52 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
     return const [
       {
-        'id': 'n4_maths_distinction_squad',
-        'name': 'N4 Maths Distinction Squad',
-        'type': 'Group Chat',
-        'lastMessage':
-            'Sipho: I finally solved question 4 from the 2025 paper! I\'ll send the PDF.',
-        'unread': 3,
+        'id': 'tumi_m',
+        'name': 'Tumi Mothoa',
+        'type': 'Friend',
+        'lastMessage': 'Great work on the assignment. I added the final reference section.',
+        'unread': 2,
         'time': '10:30 AM',
-        'avatarType': 'icon',
-        'avatarIcon': Icons.group,
+        'avatarType': 'letter',
+        'avatarText': 'T',
         'avatarColor': Color(0xFF2E7D32),
+        'isOnline': true,
       },
       {
-        'id': 'mrs_venter_lecturer',
-        'name': 'Mrs. Venter (Lecturer - Entrepreneurship)',
-        'type': 'Lecturer',
-        'lastMessage':
-            'Please remember your business plan drafts are due this Friday.',
-        'unread': 1,
+        'id': 'naledi_s',
+        'name': 'Naledi Sampson',
+        'type': 'Friend',
+        'lastMessage': 'I can meet after class today to discuss the project.',
+        'unread': 0,
         'time': 'Yesterday',
         'avatarType': 'letter',
-        'avatarText': 'V',
+        'avatarText': 'N',
         'avatarColor': Color(0xFF1565C0),
+        'isOnline': false,
       },
       {
-        'id': 'campus_financial_aid_nsfas',
-        'name': 'Campus Financial Aid (NSFAS)',
-        'type': 'Official',
-        'lastMessage':
-            'Your allowance appeal has been received and is processing.',
+        'id': 'musa_k',
+        'name': 'Musa Khumalo',
+        'type': 'Friend',
+        'lastMessage': 'I found the library note for question 7 and uploaded it.',
         'unread': 0,
         'time': 'Tuesday',
-        'avatarType': 'icon',
-        'avatarIcon': Icons.account_balance,
+        'avatarType': 'letter',
+        'avatarText': 'M',
         'avatarColor': Color(0xFF6A1B9A),
+        'isOnline': true,
       },
       {
-        'id': 'david_lift_club_driver',
-        'name': 'David S. (Lift Club Driver)',
-        'type': 'Transport',
-        'lastMessage':
-            'I\'m parked outside the main gate, ready to leave for Secunda.',
-        'unread': 0,
+        'id': 'liza_p',
+        'name': 'Liza Phiri',
+        'type': 'Friend',
+        'lastMessage': 'Can you review the final slide deck tonight?',
+        'unread': 1,
         'time': 'Monday',
         'avatarType': 'letter',
-        'avatarText': 'D',
+        'avatarText': 'L',
         'avatarColor': Color(0xFFEF6C00),
+        'isOnline': false,
       },
     ];
   }
@@ -80,17 +81,17 @@ class _MessagesScreenState extends State<MessagesScreen> {
   @override
   Widget build(BuildContext context) {
     return VibeScaffold(
-      appBar: AppBar(title: const Text('Secure Campus Inbox')),
+      appBar: AppBar(title: const Text('Friend Chats')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Opening secure campus directory...'),
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => const MyCampusFriendsScreen(),
             ),
           );
         },
-        icon: const Icon(Icons.edit),
-        label: const Text('New Message'),
+        icon: const Icon(Icons.person_add_alt_1),
+        label: const Text('New Friend Chat'),
       ),
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: _inboxFuture,
@@ -113,7 +114,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
             );
           }
 
-          final conversations = snapshot.data!;
+          final conversations = snapshot.data!
+              .where((chat) => chat['type'] == 'Friend')
+              .toList();
 
           return Column(
             children: [
@@ -137,8 +140,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                 child: ListView.separated(
                   padding: const EdgeInsets.fromLTRB(12, 0, 12, 96),
                   itemCount: conversations.length,
-                  // ignore: avoid_types_as_parameter_names
-                  separatorBuilder: (_, _) => const SizedBox(height: 8),
+                  separatorBuilder: (context, index) => const SizedBox(height: 8),
                   itemBuilder: (context, index) {
                     final chat = conversations[index];
                     return _ConversationTile(
@@ -146,8 +148,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                       onTap: () {
                         Navigator.of(context).push(
                           MaterialPageRoute(
-                            // ignore: avoid_types_as_parameter_names
-                            builder: (_) => ChatDetailScreen(
+                            builder: (context) => ChatDetailScreen(
                               chatId: chat['id'] as String,
                               chatTitle: chat['name'] as String,
                             ),
@@ -184,10 +185,8 @@ class _MessagesScreenState extends State<MessagesScreen> {
             Expanded(
               child: ListView.separated(
                 itemCount: 4,
-                // ignore: avoid_types_as_parameter_names
-                separatorBuilder: (_, _) => const SizedBox(height: 8),
-                // ignore: avoid_types_as_parameter_names
-                itemBuilder: (_, _) => Container(
+                separatorBuilder: (context, index) => const SizedBox(height: 8),
+                itemBuilder: (context, index) => Container(
                   height: 92,
                   decoration: BoxDecoration(
                     color: Colors.white,
@@ -201,10 +200,6 @@ class _MessagesScreenState extends State<MessagesScreen> {
       ),
     );
   }
-}
-
-// ignore: camel_case_types
-class _ {
 }
 
 class _ConversationTile extends StatelessWidget {
@@ -246,15 +241,31 @@ class _ConversationTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    chat['name'] as String,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontWeight: unread > 0 ? FontWeight.w800 : FontWeight.w700,
-                      color: const Color(0xFF111111),
-                      fontSize: 14.5,
-                    ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          chat['name'] as String,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontWeight: unread > 0 ? FontWeight.w800 : FontWeight.w700,
+                            color: const Color(0xFF111111),
+                            fontSize: 14.5,
+                          ),
+                        ),
+                      ),
+                      if (chat['isOnline'] as bool)
+                        Container(
+                          margin: const EdgeInsets.only(left: 6),
+                          width: 8,
+                          height: 8,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFF2E7D32),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                    ],
                   ),
                   const SizedBox(height: 3),
                   Text(

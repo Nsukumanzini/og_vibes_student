@@ -21,11 +21,14 @@ import 'my_campus_friends_screen.dart';
 import 'assignment_submission_screen.dart';
 import 'assessments_calendar_screen.dart';
 import 'portal_screen.dart';
-import 'study_group_finder_screen.dart';
-import 'study_resources_screen.dart';
 import 'timetable_screen.dart';
 import 'trivia_game_screen.dart';
 import 'online_classes_screen.dart';
+import 'group_chats_screen.dart';
+import 'icass_checker_screen.dart';
+import 'past_question_papers_screen.dart';
+import 'slides_screen.dart';
+import 'career_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -437,24 +440,24 @@ class _HomeScreenState extends State<HomeScreen> {
   List<_HubCardInfo> _getStudyHubCards() {
     return [
       _HubCardInfo(
-        title: 'Study Resources',
-        icon: Icons.menu_book_rounded,
+        title: 'Past Question Papers',
+        icon: Icons.picture_as_pdf,
         color: Colors.indigo,
         gradientColors: const [Color(0xFF3F51B5), Color(0xFF5C6BC0)],
-        onTap: (context) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const StudyResourcesScreen())),
+        onTap: (context) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PastQuestionPapersScreen())),
       ),
       _HubCardInfo(
-        title: 'Study Group',
-        icon: Icons.group_work_rounded,
-        color: Colors.teal,
-        gradientColors: const [Color(0xFF00897B), Color(0xFF26A69A)],
-        onTap: (context) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const StudyGroupFinderScreen())),
+        title: 'Lecture Slides',
+        icon: Icons.slideshow,
+        color: Colors.deepPurple,
+        gradientColors: const [Color(0xFF4527A0), Color(0xFF7E57C2)],
+        onTap: (context) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SlidesScreen())),
       ),
       _HubCardInfo(
         title: 'Timetable',
         icon: Icons.event_note_rounded,
-        color: Colors.deepPurple,
-        gradientColors: const [Color(0xFF4527A0), Color(0xFF7E57C2)],
+        color: Colors.deepPurpleAccent,
+        gradientColors: const [Color(0xFF3949AB), Color(0xFF5C6BC0)],
         onTap: (context) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TimetableScreen())),
       ),
       _HubCardInfo(
@@ -492,6 +495,20 @@ class _HomeScreenState extends State<HomeScreen> {
         gradientColors: const [Color(0xFFC62828), Color(0xFFD32F2F)],
         onTap: (context) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TriviaGameScreen())),
       ),
+      _HubCardInfo(
+        title: 'Group Chats',
+        icon: Icons.chat,
+        color: Colors.cyan,
+        gradientColors: const [Color(0xFF00838F), Color(0xFF26C6DA)],
+        onTap: (context) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const GroupChatsScreen())),
+      ),
+      _HubCardInfo(
+        title: 'ICASS Marks',
+        icon: Icons.bar_chart_rounded,
+        color: Colors.amber,
+        gradientColors: const [Color(0xFFF57F17), Color(0xFFFBC02D)],
+        onTap: (context) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const IcassCheckerScreen())),
+      ),
     ];
   }
 
@@ -524,6 +541,13 @@ class _HomeScreenState extends State<HomeScreen> {
         color: Colors.blueGrey,
         gradientColors: const [Color(0xFF37474F), Color(0xFF546E7A)],
         onTap: (context) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const DocumentWalletScreen())),
+      ),
+      _HubCardInfo(
+        title: 'Career & Funding',
+        icon: Icons.trending_up_rounded,
+        color: Colors.teal,
+        gradientColors: const [Color(0xFF00695C), Color(0xFF00897B)],
+        onTap: (context) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CareerScreen())),
       ),
     ];
   }
