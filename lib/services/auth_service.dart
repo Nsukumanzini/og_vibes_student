@@ -1,20 +1,14 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AuthResult {
-  const AuthResult({required this.credential, required this.needsVerification});
+  const AuthResult({required this.response, required this.needsVerification});
 
-  final UserCredential credential;
+  final dynamic response;
   final bool needsVerification;
 }
 
 class AuthService {
-  AuthService({FirebaseAuth? auth, FirebaseFirestore? firestore})
-    : _auth = auth ?? FirebaseAuth.instance,
-      _firestore = firestore ?? FirebaseFirestore.instance;
-
-  final FirebaseAuth _auth;
-  final FirebaseFirestore _firestore;
+  AuthService();
 
   Future<AuthResult> signUp({
     required String email,
@@ -32,87 +26,66 @@ class AuthService {
     String? deviceLocale,
     String? phone,
   }) async {
-    final credential = await _auth.createUserWithEmailAndPassword(
+    final response = await Supabase.instance.client.auth.signUp(
       email: email.trim(),
       password: password.trim(),
+      data: {
+        'name': name.trim(),
+        'surname': surname.trim(),
+        'campus': campus,
+        'department': department,
+        'level': level,
+        'studentType': studentType,
+        'gender': gender,
+        if (studentNumber != null && studentNumber.isNotEmpty) 'studentNumber': studentNumber.trim(),
+        if (timeZoneName != null && timeZoneName.isNotEmpty) 'timeZoneName': timeZoneName,
+        if (timeZoneOffset != null && timeZoneOffset.isNotEmpty) 'timeZoneOffset': timeZoneOffset,
+        if (deviceLocale != null && deviceLocale.isNotEmpty) 'deviceLocale': deviceLocale,
+        if (phone != null && phone.isNotEmpty) 'phone': phone,
+      },
     );
 
-    final user = credential.user;
+    final user = response.user;
     if (user == null) {
-      throw FirebaseAuthException(
-        code: 'user-null',
-        message: 'Unable to create account. Please try again.',
-      );
+      throw Exception('Unable to create account. Please try again.');
     }
 
-    final profileData = <String, dynamic>{
-      'uid': user.uid,
-      'email': email.trim(),
-      'name': name.trim(),
-      'surname': surname.trim(),
-      'campus': campus,
-      'department': department,
-      'level': level,
-      'studentType': studentType,
-      'gender': gender,
-      'createdAt': FieldValue.serverTimestamp(),
-    };
-
-    if (timeZoneName != null && timeZoneName.isNotEmpty) {
-      profileData['timeZoneName'] = timeZoneName;
-    }
-    if (timeZoneOffset != null && timeZoneOffset.isNotEmpty) {
-      profileData['timeZoneOffset'] = timeZoneOffset;
-    }
-    if (studentNumber != null && studentNumber.isNotEmpty) {
-      profileData['studentNumber'] = studentNumber;
-    }
-    if (timeZoneName != null && timeZoneName.isNotEmpty) {
-      profileData['timeZoneName'] = timeZoneName;
-    }
-    if (timeZoneOffset != null && timeZoneOffset.isNotEmpty) {
-      profileData['timeZoneOffset'] = timeZoneOffset;
-    }
-    if (deviceLocale != null && deviceLocale.isNotEmpty) {
-      profileData['deviceLocale'] = deviceLocale;
-    }
-
-    if (phone != null && phone.isNotEmpty) {
-      profileData['phone'] = phone;
-    }
-
-    await _firestore.collection('users').doc(user.uid).set(profileData);
-
-    await user.sendEmailVerification();
-
-    return AuthResult(credential: credential, needsVerification: true);
+    final needsVerification = user.emailConfirmedAt == null;
+    return AuthResult(response: response, needsVerification: needsVerification);
   }
 
   Future<AuthResult> signIn({
     required String email,
     required String password,
   }) async {
-    final credential = await _auth.signInWithEmailAndPassword(
+    final response = await Supabase.instance.client.auth.signInWithPassword(
       email: email.trim(),
       password: password.trim(),
     );
 
-    final user = credential.user;
+    final user = response.user;
     if (user == null) {
-      throw FirebaseAuthException(
-        code: 'user-null',
-        message: 'Unable to sign in. Please try again.',
-      );
+      throw Exception('Unable to sign in. Please try again.');
     }
 
-    final needsVerification = user.emailVerified != true;
-    return AuthResult(
-      credential: credential,
-      needsVerification: needsVerification,
-    );
+    final needsVerification = user.emailConfirmedAt == null;
+    return AuthResult(response: response, needsVerification: needsVerification);
+  }
+
+  Future<AuthResult> signInWithPhoneOtp({required String phone}) async {
+    final response = await Supabase.instance.client.auth.signInWithOtp(phone: phone);
+    final user = response.user;
+    if (user == null) {
+      throw Exception('Unable to sign in with phone. Please try again.');
+    }
+    return AuthResult(response: response, needsVerification: false);
+  }
+
+  Future<AuthResult> signInAnonymously() async {
+    throw UnsupportedError('Anonymous sign-in is not supported by Supabase.');
   }
 
   Future<void> signOut() async {
-    await _auth.signOut();
+    await Supabase.instance.client.auth.signOut();
   }
 }

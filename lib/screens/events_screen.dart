@@ -1,6 +1,6 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:og_vibes_student/widgets/vibe_scaffold.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class EventsScreen extends StatelessWidget {
@@ -8,22 +8,19 @@ class EventsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final eventsRef = FirebaseFirestore.instance
-        .collection('events')
-        .orderBy('date', descending: false);
-
     return VibeScaffold(
       appBar: AppBar(title: const Text('Events & Parties')),
-      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: eventsRef.snapshots(),
+      body: StreamBuilder<PostgrestResponse>(
+        stream: Supabase.instance.client
+            .from('events')
+            .stream(primaryKey: ['id'])
+            .order('date', ascending: true),
         builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
+          if (snapshot.hasError || snapshot.data?.error != null) {
+            final error = snapshot.data?.error?.message ?? snapshot.error;
+            return Center(child: Text('Error: $error'));
           }
-          if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          final events = snapshot.data!.docs;
+          final events = snapshot.data?.data as List<dynamic>? ?? [];
           if (events.isEmpty) {
             return const Center(
               child: Padding(
@@ -40,7 +37,7 @@ class EventsScreen extends StatelessWidget {
             itemCount: events.length,
             separatorBuilder: (_, _) => const SizedBox(height: 16),
             itemBuilder: (context, index) {
-              final data = events[index].data();
+              final data = Map<String, dynamic>.from(events[index] as Map);
               final title = (data['title'] as String?) ?? 'Campus Event';
               final date = (data['dateLabel'] as String?) ?? 'Date TBA';
               final venue = (data['venue'] as String?) ?? 'Venue TBA';

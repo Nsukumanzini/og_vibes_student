@@ -1,17 +1,16 @@
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 import 'comment_sheet.dart';
 
 class PostCard extends StatefulWidget {
-  const PostCard({super.key, required this.doc});
+  const PostCard({super.key, required this.data});
 
-  final DocumentSnapshot<Map<String, dynamic>> doc;
+  final Map<String, dynamic> data;
 
   @override
   State<PostCard> createState() => _PostCardState();
@@ -22,11 +21,18 @@ class _PostCardState extends State<PostCard> {
   int _currentImageIndex = 0;
   bool _isExpanded = false;
   final List<TapGestureRecognizer> _tagRecognizers = [];
+  bool _hasLiked = false;
+  int _likeCount = 0;
+  bool _likesLoading = false;
 
   @override
   void initState() {
     super.initState();
     _pageController = PageController();
+    final postId = widget.data['id']?.toString() ?? widget.data['post_id']?.toString() ?? '';
+    if (postId.isNotEmpty) {
+      _loadLikeState(postId);
+    }
   }
 
   @override
@@ -38,36 +44,34 @@ class _PostCardState extends State<PostCard> {
 
   @override
   Widget build(BuildContext context) {
-    final data = widget.doc.data();
-    if (data == null) {
-      return const SizedBox.shrink();
-    }
+    final data = widget.data;
 
-    final author = (data['authorName'] as String?)?.trim();
+    final authorOverride = (data['author_name'] as String?)?.trim();
     final content = (data['content'] as String?)?.trim() ?? '';
     final department = (data['department'] as String?)?.trim() ?? 'General';
     final campus = (data['campus'] as String?)?.trim() ?? 'Campus';
-    final isAnonymous = data['isAnonymous'] == true;
-    final isVerified = data['isVerified'] == true;
-    final isOnline = data['isOnline'] == true;
+    final isAnonymous = data['is_anonymous'] == true;
+    final isVerified = data['is_verified'] == true;
+    final isOnline = data['is_online'] == true;
     final poll = data['poll'] as Map<String, dynamic>?;
-    final timestamp = data['createdAt'];
+    final timestamp = data['created_at'];
 
-    // Handle likes field robustly
-    List<String> likes = [];
     final rawLikes = data['likes'];
-    if (rawLikes is List) {
-      likes = rawLikes.whereType<String>().toList();
-    } else if (rawLikes is int) {
-      // Legacy: treat as empty list
-      likes = [];
-    } else if (rawLikes is Iterable) {
-      likes = List<String>.from(rawLikes);
+    if (_likeCount == 0) {
+      if (rawLikes is List) {
+        _likeCount = rawLikes.whereType<String>().length;
+      } else if (rawLikes is int) {
+        _likeCount = rawLikes;
+      } else if (rawLikes is Iterable) {
+        _likeCount = List<String>.from(rawLikes).length;
+      }
     }
 
-    final currentUid = FirebaseAuth.instance.currentUser?.uid;
-    final hasLiked = currentUid != null && likes.contains(currentUid);
-    final postId = widget.doc.id;
+    final postId = data['id']?.toString() ?? data['post_id']?.toString() ?? '';
+    final authorName = _extractAuthorName(data) ?? authorOverride;
+    final authorPhoto = _extractAuthorPhoto(data);
+    final authorCampus = _extractAuthorCampus(data) ?? campus;
+    final authorDepartment = _extractAuthorDepartment(data) ?? department;
 
     final images = _extractImages(data);
     final imageCount = images.length;
@@ -103,12 +107,13 @@ class _PostCardState extends State<PostCard> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildHeader(
-              author: author,
-              campus: campus,
+              author: authorName,
+              authorPhotoUrl: authorPhoto,
+              campus: authorCampus,
               isAnonymous: isAnonymous,
               isVerified: isVerified,
               isOnline: isOnline,
-              department: department,
+              department: authorDepartment,
               timestamp: timestamp,
               textTheme: textTheme,
               colorScheme: colorScheme,
@@ -124,8 +129,8 @@ class _PostCardState extends State<PostCard> {
             if (poll != null) ...[const SizedBox(height: 16), _buildPoll(poll)],
             const SizedBox(height: 12),
             _buildFooter(
-              likes: likes,
-              hasLiked: hasLiked,
+              likeCount: _likeCount,
+              hasLiked: _hasLiked,
               postId: postId,
               data: data,
               textTheme: textTheme,
@@ -139,6 +144,7 @@ class _PostCardState extends State<PostCard> {
 
   Widget _buildHeader({
     required String? author,
+    required String? authorPhotoUrl,
     required String campus,
     required bool isAnonymous,
     required bool isVerified,
@@ -169,17 +175,22 @@ class _PostCardState extends State<PostCard> {
           child: CircleAvatar(
             radius: 24,
             backgroundColor: Theme.of(context).cardTheme.color,
-            child: isAnonymous
-                ? Icon(
-                    Icons.emoji_emotions_outlined,
-                    color: colorScheme.secondary,
-                  )
-                : Text(
-                    displayName[0].toUpperCase(),
-                    style: textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+            backgroundImage: authorPhotoUrl != null && authorPhotoUrl.isNotEmpty
+                ? NetworkImage(authorPhotoUrl)
+                : null,
+            child: authorPhotoUrl == null || authorPhotoUrl.isEmpty
+                ? isAnonymous
+                    ? Icon(
+                        Icons.emoji_emotions_outlined,
+                        color: colorScheme.secondary,
+                      )
+                    : Text(
+                        displayName[0].toUpperCase(),
+                        style: textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      )
+                : null,
           ),
         ),
         const SizedBox(width: 12),
@@ -390,14 +401,14 @@ class _PostCardState extends State<PostCard> {
   }
 
   Widget _buildFooter({
-    required List<String> likes,
+    required int likeCount,
     required bool hasLiked,
     required String postId,
     required Map<String, dynamic> data,
     required TextTheme textTheme,
     required ColorScheme colorScheme,
   }) {
-    final likeLabel = likes.isEmpty ? 'Like' : 'Like (${likes.length})';
+    final likeLabel = likeCount == 0 ? 'Like' : 'Like ($likeCount)';
 
     return Column(
       children: [
@@ -408,7 +419,7 @@ class _PostCardState extends State<PostCard> {
               icon: hasLiked ? Icons.favorite : Icons.favorite_border,
               label: likeLabel,
               highlighted: hasLiked,
-              onTap: () => _togglePostLike(likes),
+              onTap: () => _togglePostLike(postId),
             ),
             _ActionButton(
               icon: Icons.chat_bubble_outline,
@@ -426,22 +437,39 @@ class _PostCardState extends State<PostCard> {
     );
   }
 
-  Future<void> _togglePostLike(List<String> likes) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
+  Future<void> _togglePostLike(String postId) async {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Sign in to like posts.')));
       return;
     }
 
-    final hasLiked = likes.contains(user.uid);
+    if (postId.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Unable to identify the post.')));
+      return;
+    }
+
+    final hasLiked = _hasLiked;
     try {
-      await widget.doc.reference.update({
-        'likes': hasLiked
-            ? FieldValue.arrayRemove([user.uid])
-            : FieldValue.arrayUnion([user.uid]),
-      });
+      if (hasLiked) {
+        await Supabase.instance.client
+            .from('post_likes')
+            .delete()
+            .eq('post_id', postId)
+            .eq('user_id', userId)
+            .execute();
+      } else {
+        await Supabase.instance.client
+            .from('post_likes')
+            .insert({'post_id': postId, 'user_id': userId}).execute();
+      }
+
+      if (!mounted) return;
+      await _loadLikeState(postId);
     } catch (error) {
       if (!mounted) {
         return;
@@ -458,6 +486,41 @@ class _PostCardState extends State<PostCard> {
       isScrollControlled: true,
       builder: (_) => CommentSheet(postId: postId),
     );
+  }
+
+  Future<void> _loadLikeState(String postId) async {
+    if (postId.isEmpty) return;
+    setState(() {
+      _likesLoading = true;
+    });
+
+    final response = await Supabase.instance.client
+        .from('post_likes')
+        .select('user_id')
+        .eq('post_id', postId)
+        .execute();
+
+    if (!mounted) return;
+
+    setState(() {
+      _likesLoading = false;
+    });
+
+    if (response.error != null) {
+      return;
+    }
+
+    final likedUsers = (response.data as List<dynamic>?)
+            ?.map((item) => item['user_id']?.toString())
+            .whereType<String>()
+            .toList() ??
+        [];
+
+    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+    setState(() {
+      _likeCount = likedUsers.length;
+      _hasLiked = currentUserId != null && likedUsers.contains(currentUserId);
+    });
   }
 
   void _sharePost(Map<String, dynamic> data) {
@@ -493,8 +556,14 @@ class _PostCardState extends State<PostCard> {
   }
 
   String _formatTimestamp(dynamic timestamp) {
-    if (timestamp is Timestamp) {
-      return timeago.format(timestamp.toDate());
+    if (timestamp is String) {
+      final parsed = DateTime.tryParse(timestamp);
+      if (parsed != null) {
+        return timeago.format(parsed);
+      }
+    }
+    if (timestamp is DateTime) {
+      return timeago.format(timestamp);
     }
     return 'Moments ago';
   }

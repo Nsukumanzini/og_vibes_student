@@ -1,6 +1,5 @@
-﻿import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:og_vibes_student/widgets/vibe_scaffold.dart';
 
 import '../screens/blocked_users_screen.dart';
@@ -17,9 +16,8 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final AuthService _authService = AuthService();
-  final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  User? get _user => _auth.currentUser;
+  User? get _user => Supabase.instance.client.auth.currentUser;
 
   @override
   Widget build(BuildContext context) {
@@ -146,7 +144,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _showChangePasswordDialog() async {
-    final oldController = TextEditingController();
     final newController = TextEditingController();
     final formKey = GlobalKey<FormState>();
 
@@ -160,17 +157,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextFormField(
-                  controller: oldController,
-                  obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Current Password',
-                  ),
-                  validator: (value) => value == null || value.isEmpty
-                      ? 'Enter your current password'
-                      : null,
-                ),
-                const SizedBox(height: 12),
                 TextFormField(
                   controller: newController,
                   obscureText: true,
@@ -191,23 +177,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
               onPressed: () async {
                 if (!formKey.currentState!.validate()) return;
                 final user = _user;
-                if (user == null || user.email == null) {
+                if (user == null) {
                   _showSnack('You need to be signed in.');
                   return;
                 }
                 final navigator = Navigator.of(context);
                 try {
-                  final credential = EmailAuthProvider.credential(
-                    email: user.email!,
-                    password: oldController.text.trim(),
+                  await Supabase.instance.client.auth.reauthenticate();
+                  await Supabase.instance.client.auth.updateUser(
+                    UserAttributes(password: newController.text.trim()),
                   );
-                  await user.reauthenticateWithCredential(credential);
-                  await user.updatePassword(newController.text.trim());
                   if (!mounted) return;
                   navigator.pop();
                   _showSnack('Password updated.');
-                } on FirebaseAuthException catch (error) {
-                  _showSnack(error.message ?? 'Unable to update password.');
+                } catch (error) {
+                  _showSnack(error.toString());
                 }
               },
               child: const Text('Save'),
@@ -243,11 +227,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
               }
               final navigator = Navigator.of(context);
               try {
-                await FirebaseFirestore.instance.collection('bug_reports').add({
-                  'userId': _user?.uid,
+                final response = await Supabase.instance.client.from('bug_reports').insert({
+                  'user_id': _user?.id,
                   'description': text,
-                  'createdAt': FieldValue.serverTimestamp(),
-                });
+                }).execute();
+                if (response.error != null) {
+                  throw response.error!.message;
+                }
                 if (!mounted) return;
                 navigator.pop();
                 _showSnack('Bug report sent. Thank you!');
@@ -297,7 +283,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       return;
     }
 
-    final password = passwordController.text.trim();
     final user = _user;
     if (user == null || user.email == null) {
       _showSnack('No authenticated user.');
@@ -305,16 +290,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
 
     try {
-      final credential = EmailAuthProvider.credential(
-        email: user.email!,
-        password: password,
-      );
-      await user.reauthenticateWithCredential(credential);
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .delete();
-      await user.delete();
+      await Supabase.instance.client.auth.signOut();
+      final response = await Supabase.instance.client
+          .from('profiles')
+          .delete()
+          .eq('id', user.id)
+          .execute();
+      if (response.error != null) {
+        throw Exception(response.error!.message);
+      }
       await _authService.signOut();
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
@@ -322,10 +306,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         (route) => false,
       );
       _showSnack('Account deleted.');
-    } on FirebaseAuthException catch (error) {
-      _showSnack(error.message ?? 'Failed to delete account.');
     } catch (error) {
-      _showSnack('Unexpected error: $error');
+      _showSnack('Failed to delete account: $error');
     }
   }
 

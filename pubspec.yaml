@@ -40,10 +40,6 @@ dependencies:
   confetti: ^0.7.0
   dio: ^5.7.0
   glass_kit: ^3.0.0
-  firebase_core: ^4.2.1
-  firebase_auth: ^6.1.2
-  cloud_firestore: ^6.1.0
-  firebase_storage: ^13.0.4
   image_picker: ^1.1.2
   shimmer: ^3.0.0
   carousel_slider: ^5.0.0
@@ -61,6 +57,7 @@ dependencies:
   webview_flutter: ^4.13.0
   liquid_progress_indicator_v2: ^0.5.0
   file_picker: ^10.3.7
+  supabase_flutter: ^2.0.0
   flutter_secure_storage: ^9.2.2
   fl_chart: ^0.69.0
   path_provider: ^2.1.4

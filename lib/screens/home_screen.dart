@@ -1,10 +1,9 @@
 // ignore_for_file: unused_element_parameter
 
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:og_vibes_student/screens/home/widgets/home_bottom_navigation_bar.dart';
 import 'package:shimmer/shimmer.dart';
 
@@ -29,6 +28,7 @@ import 'icass_checker_screen.dart';
 import 'past_question_papers_screen.dart';
 import 'slides_screen.dart';
 import 'career_screen.dart';
+import 'market_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -38,36 +38,55 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-
   int _currentTab = 0;
-  
+
   // Pagination & Scroll State
   late final ScrollController _scrollController;
-  int _postLimit = 10; // Start with only 10 posts to save Firebase costs
+  int _postLimit = 10; // Start with only 10 posts
   bool _isFetchingMore = false;
   bool _isFabVisible = true;
   bool _showBackToTopPill = false;
 
-  late Stream<QuerySnapshot<Map<String, dynamic>>> _postsStream;
+  bool _isLoadingPosts = true;
+  List<Map<String, dynamic>> _posts = [];
 
   @override
   void initState() {
     super.initState();
     _scrollController = ScrollController();
     _scrollController.addListener(_handleScroll);
-    _initPostsStream();
+    _loadPosts();
   }
 
-  void _initPostsStream() {
-    // Soft Delete: Only show posts where isDeleted == false
-    _postsStream = _firestore
-        .collection('posts')
-        .where('isDeleted', isEqualTo: false)
-        .orderBy('createdAt', descending: true)
+  Future<void> _loadPosts({bool reset = false}) async {
+    if (reset) {
+      _postLimit = 10;
+      setState(() {
+        _isLoadingPosts = true;
+      });
+    }
+
+    final response = await Supabase.instance.client
+        .from('posts')
+        .select('*, profiles(name, surname, photo_url, campus, department)')
+        .eq('is_deleted', false)
+        .order('created_at', ascending: false)
         .limit(_postLimit)
-        .snapshots(includeMetadataChanges: true); // Enables smooth offline caching
+        .execute();
+
+    if (!mounted) return;
+
+    if (response.error != null) {
+      setState(() {
+        _isLoadingPosts = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _posts = List<Map<String, dynamic>>.from(response.data as List<dynamic>? ?? []);
+      _isLoadingPosts = false;
+    });
   }
 
   @override
@@ -78,16 +97,12 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _refreshFeed() async {
-    setState(() {
-      _postLimit = 10;
-      _initPostsStream();
-    });
-    await Future<void>.delayed(const Duration(milliseconds: 500));
+    await _loadPosts(reset: true);
   }
 
-  void _handleScroll() {
+  Future<void> _handleScroll() async {
     if (!_scrollController.hasClients) return;
-    
+
     // 1. Handle FAB and Back to Top Pill visibility
     final direction = _scrollController.position.userScrollDirection;
     if (direction == ScrollDirection.reverse && _isFabVisible) {
@@ -103,12 +118,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
     // 2. Handle Pagination (Load more when reaching the bottom)
     if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200 && !_isFetchingMore) {
-      setState(() {
-        _isFetchingMore = true;
-        _postLimit += 10; // Load 10 more posts
-        _initPostsStream();
-        _isFetchingMore = false;
-      });
+      setState(() => _isFetchingMore = true);
+      _postLimit += 10;
+      await _loadPosts();
+      if (!mounted) return;
+      setState(() => _isFetchingMore = false);
     }
   }
 
@@ -123,7 +137,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   String _getDynamicGreeting() {
     final hour = DateTime.now().hour;
-    final name = _auth.currentUser?.displayName?.split(' ').first ?? 'Viber';
+    final user = Supabase.instance.client.auth.currentUser;
+    final name = user?.userMetadata?['name']?.toString().split(' ').first ??
+        user?.email?.split('@').first ??
+        'Viber';
     if (hour < 12) return 'Good morning, $name ☀️';
     if (hour < 17) return 'Good afternoon, $name 🌤️';
     return 'Good evening, $name 🌙';
@@ -167,42 +184,28 @@ class _HomeScreenState extends State<HomeScreen> {
           color: Theme.of(context).primaryColor,
           backgroundColor: Colors.white,
           onRefresh: _refreshFeed,
-          child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-            stream: _postsStream,
-            builder: (context, snapshot) {
-              final slivers = <Widget>[_buildFeedSliverAppBar()];
-
-              if (snapshot.hasError) {
-                slivers.add(_buildErrorSliver(snapshot.error));
-              } else if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
-                slivers.add(_buildLoadingSliver());
-              } else {
-                final docs = snapshot.data?.docs ?? [];
-                if (docs.isEmpty) {
-                  slivers.add(_buildEmptyStateSliver());
-                } else {
-                  slivers.add(_buildPostsSliver(docs));
-                  if (_isFetchingMore) {
-                    slivers.add(const SliverToBoxAdapter(
-                      child: Padding(
-                        padding: EdgeInsets.all(16.0),
-                        child: Center(child: CircularProgressIndicator()),
-                      ),
-                    ));
-                  }
-                }
-              }
-
-              slivers.add(const SliverToBoxAdapter(child: SizedBox(height: 120)));
-
-              return AnimationLimiter(
-                child: CustomScrollView(
-                  controller: _scrollController,
-                  physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-                  slivers: slivers,
-                ),
-              );
-            },
+          child: AnimationLimiter(
+            child: CustomScrollView(
+              controller: _scrollController,
+              physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+              slivers: [
+                _buildFeedSliverAppBar(),
+                if (_isLoadingPosts)
+                  _buildLoadingSliver()
+                else if (_posts.isEmpty)
+                  _buildEmptyStateSliver()
+                else
+                  _buildPostsSliver(_posts),
+                if (_isFetchingMore)
+                  const SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: Center(child: CircularProgressIndicator()),
+                    ),
+                  ),
+                const SliverToBoxAdapter(child: SizedBox(height: 120)),
+              ],
+            ),
           ),
         ),
         Positioned(
@@ -536,6 +539,13 @@ class _HomeScreenState extends State<HomeScreen> {
         onTap: (context) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MyCampusFriendsScreen())),
       ),
       _HubCardInfo(
+        title: 'Marketplace',
+        icon: Icons.storefront_rounded,
+        color: Colors.indigo,
+        gradientColors: const [Color(0xFF3949AB), Color(0xFF5C6BC0)],
+        onTap: (context) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MarketScreen())),
+      ),
+      _HubCardInfo(
         title: 'Document Wallet',
         icon: Icons.badge,
         color: Colors.blueGrey,
@@ -553,7 +563,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // ================= FEED HELPERS & BUILDERS =================
-  SliverList _buildPostsSliver(List<QueryDocumentSnapshot<Map<String, dynamic>>> docs) {
+  SliverList _buildPostsSliver(List<Map<String, dynamic>> posts) {
     return SliverList(
       delegate: SliverChildBuilderDelegate((context, index) {
         return AnimationConfiguration.staggeredList(
@@ -564,12 +574,12 @@ class _HomeScreenState extends State<HomeScreen> {
             child: FadeInAnimation(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: PostCard(doc: docs[index]),
+                child: PostCard(data: posts[index]),
               ),
             ),
           ),
         );
-      }, childCount: docs.length),
+      }, childCount: posts.length),
     );
   }
 

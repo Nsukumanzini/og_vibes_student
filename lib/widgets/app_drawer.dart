@@ -1,6 +1,5 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../screens/helpful_contacts_screen.dart';
@@ -20,9 +19,6 @@ class AppDrawer extends StatefulWidget {
 }
 
 class _AppDrawerState extends State<AppDrawer> {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-
   bool _isExamMode = false;
   String _userName = 'OG Vibester';
   String _userCampus = 'Campus Unknown';
@@ -36,42 +32,42 @@ class _AppDrawerState extends State<AppDrawer> {
   }
 
   Future<void> _loadUserProfile() async {
-    final user = _auth.currentUser;
+    final user = Supabase.instance.client.auth.currentUser;
     if (user == null) {
       return;
     }
 
     try {
-      final doc = await _firestore.collection('users').doc(user.uid).get();
-      final data = doc.data() ?? {};
+      final response = await Supabase.instance.client
+          .from('profiles')
+          .select('name, campus, department, photo_url')
+          .eq('id', user.id)
+          .single()
+          .execute();
+      final data = response.data as Map<String, dynamic>?;
       if (!mounted) return;
       setState(() {
-        _userName = (data['displayName'] as String?)?.trim().isNotEmpty == true
-            ? data['displayName'] as String
-            : (user.displayName?.trim().isNotEmpty == true
-                  ? user.displayName!
-                  : 'OG Vibester');
-        _userCampus = (data['campus'] as String?)?.trim().isNotEmpty == true
-            ? data['campus'] as String
+        _userName = (data?['name'] as String?)?.trim().isNotEmpty == true
+            ? data!['name'] as String
+            : (user.email?.split('@').first ?? 'OG Vibester');
+        _userCampus = (data?['campus'] as String?)?.trim().isNotEmpty == true
+            ? data!['campus'] as String
             : 'Campus Unknown';
-        final course = (data['course'] as String?)?.trim();
-        final department = (data['department'] as String?)?.trim();
-        _userCourse = (course?.isNotEmpty == true)
-            ? course!
-            : (department?.isNotEmpty == true
-                  ? department!
-                  : 'General Studies');
-        _photoUrl = (data['photoUrl'] as String?)?.trim().isNotEmpty == true
-            ? data['photoUrl'] as String
-            : user.photoURL;
+        final department = (data?['department'] as String?)?.trim();
+        _userCourse = (department?.isNotEmpty == true)
+            ? department!
+            : 'General Studies';
+        _photoUrl = (data?['photo_url'] as String?)?.trim().isNotEmpty == true
+            ? data!['photo_url'] as String
+            : user.userMetadata['avatar_url'] as String?;
       });
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _userName = user.displayName ?? 'OG Vibester';
+        _userName = user.email?.split('@').first ?? 'OG Vibester';
         _userCampus = 'Campus Unknown';
         _userCourse = 'General Studies';
-        _photoUrl = user.photoURL;
+        _photoUrl = user.userMetadata['avatar_url'] as String?;
       });
     }
   }

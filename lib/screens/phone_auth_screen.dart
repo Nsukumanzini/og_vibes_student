@@ -1,5 +1,5 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class PhoneAuthScreen extends StatefulWidget {
   const PhoneAuthScreen({super.key});
@@ -23,49 +23,40 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
 
   Future<void> _verifyPhone() async {
     setState(() => _isLoading = true);
-    await FirebaseAuth.instance.verifyPhoneNumber(
-      phoneNumber: _phoneController.text.trim(),
-      verificationCompleted: (PhoneAuthCredential credential) async {
-        await FirebaseAuth.instance.signInWithCredential(credential);
-        setState(() => _isLoading = false);
-        // ignore: use_build_context_synchronously
-        Navigator.of(context).pop(true);
-      },
-      verificationFailed: (FirebaseAuthException e) {
-        setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message ?? 'Verification failed')),
-        );
-      },
-      codeSent: (String verificationId, int? resendToken) {
-        setState(() {
-          _verificationId = verificationId;
-          _isLoading = false;
-        });
-      },
-      codeAutoRetrievalTimeout: (String verificationId) {
-        setState(() => _verificationId = verificationId);
-      },
-    );
+    try {
+      await Supabase.instance.client.auth.signInWithOtp(
+        phone: _phoneController.text.trim(),
+      );
+      setState(() {
+        _verificationId = 'sent';
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Verification code sent. Check your phone.')),
+      );
+    } catch (error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Verification failed: $error')),
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 
   Future<void> _signInWithCode() async {
-    if (_verificationId == null) return;
     setState(() => _isLoading = true);
-    final credential = PhoneAuthProvider.credential(
-      verificationId: _verificationId!,
-      smsCode: _codeController.text.trim(),
-    );
     try {
-      await FirebaseAuth.instance.signInWithCredential(credential);
-      // ignore: use_build_context_synchronously
+      await Supabase.instance.client.auth.verifyOTP(
+        phone: _phoneController.text.trim(),
+        token: _codeController.text.trim(),
+        type: OtpType.sms,
+      );
+      if (!mounted) return;
       Navigator.of(context).pop(true);
-    } catch (e) {
-      // ignore: use_build_context_synchronously
-      ScaffoldMessenger.of(
-        // ignore: use_build_context_synchronously
-        context,
-      ).showSnackBar(SnackBar(content: Text('Invalid code. Try again.')));
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Invalid code. Try again.')),
+      );
     } finally {
       setState(() => _isLoading = false);
     }

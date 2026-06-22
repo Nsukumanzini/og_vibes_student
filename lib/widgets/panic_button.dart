@@ -5,13 +5,12 @@
 
 import 'dart:async';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_phone_direct_caller/flutter_phone_direct_caller.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:og_vibes_student/utils/dialog_helpers.dart';
 import 'package:permission_handler/permission_handler.dart' as permission;
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:vibration/vibration.dart';
 
 class PanicButton extends StatefulWidget {
@@ -40,7 +39,6 @@ class _PanicButtonState extends State<PanicButton>
     duration: _activationDuration,
   );
 
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   Timer? _holdTimer;
   Timer? _heartbeatTimer;
   OverlayEntry? _stealthOverlay;
@@ -174,8 +172,8 @@ class _PanicButtonState extends State<PanicButton>
       debugPrint(
         '[PANIC] User profile: uid=${profile.uid}, name=${profile.name}, campus=${profile.campus}',
       );
-      final alertRef = await _createAdminAlert(profile, mapsLink);
-      debugPrint('[PANIC] Alert created: ${alertRef.id}');
+      await _createAdminAlert(profile, mapsLink);
+      debugPrint('[PANIC] Panic alert submitted');
 
       _showMessage('Panic alert sent to campus safety.');
     } catch (error, stackTrace) {
@@ -218,22 +216,27 @@ class _PanicButtonState extends State<PanicButton>
   }
 
   Future<_UserProfile> _resolveUserProfile() async {
-    final user = FirebaseAuth.instance.currentUser;
-    final uid = user?.uid ?? 'anonymous';
-    var name = user?.displayName?.trim();
+    final user = Supabase.instance.client.auth.currentUser;
+    final uid = user?.id ?? 'anonymous';
+    var name = user?.email?.split('@').first?.trim();
     var campus = 'Unknown';
 
     if (user != null) {
       try {
-        final doc = await _firestore.collection('users').doc(uid).get();
-        final data = doc.data();
-        if (data != null) {
-          final profileName = (data['displayName'] as String?)?.trim();
-          final profileCampus = (data['campus'] as String?)?.trim();
-          if (profileName != null && profileName.isNotEmpty) {
+        final response = await Supabase.instance.client
+            .from('profiles')
+            .select('name, campus')
+            .eq('id', uid)
+            .single()
+            .execute();
+        if (response.error == null) {
+          final data = response.data as Map<String, dynamic>?;
+          final profileName = (data?['name'] as String?)?.trim();
+          final profileCampus = (data?['campus'] as String?)?.trim();
+          if (profileName?.isNotEmpty == true) {
             name = profileName;
           }
-          if (profileCampus != null && profileCampus.isNotEmpty) {
+          if (profileCampus?.isNotEmpty == true) {
             campus = profileCampus;
           }
         }
@@ -250,19 +253,20 @@ class _PanicButtonState extends State<PanicButton>
     return _UserProfile(uid: uid, name: resolvedName, campus: campus);
   }
 
-  Future<DocumentReference<Map<String, dynamic>>> _createAdminAlert(
+  Future<void> _createAdminAlert(
     _UserProfile profile,
     String mapsLink,
-  ) {
-    return _firestore.collection('admin_alerts').add({
+  ) async {
+    final response = await Supabase.instance.client.from('admin_alerts').insert({
+      'student_id': profile.uid,
       'type': 'PANIC',
-      'studentId': profile.uid,
-      'studentName': profile.name,
       'campus': profile.campus,
       'location': mapsLink,
-      'timestamp': FieldValue.serverTimestamp(),
-      'status': 'OPEN',
-    });
+      'status': 'PENDING',
+    }).execute();
+    if (response.error != null) {
+      throw Exception(response.error!.message);
+    }
   }
 
   void _insertStealthOverlay() {

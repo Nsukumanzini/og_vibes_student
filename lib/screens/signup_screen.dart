@@ -1,12 +1,10 @@
 ﻿import 'dart:async';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:confetti/confetti.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../services/auth_service.dart';
 import 'login_screen.dart';
@@ -1207,11 +1205,8 @@ class _SignupScreenState extends State<SignupScreen>
         deviceLocale: _deviceLocale,
       );
 
-      _updateMintingStatus('Sending email verification...');
-      final user = result.credential.user;
-      if (user != null && !user.emailVerified) {
-        await user.sendEmailVerification();
-      }
+      _updateMintingStatus('Preparing your account...');
+      final user = result.response.user;
 
       _closeMintingDialog();
       if (!mounted) return;
@@ -1360,19 +1355,19 @@ class _SignupScreenState extends State<SignupScreen>
     _isMintingDialogOpen = false;
   }
 
-  Future<void> _maybeUploadProfileImage(User user) async {
-    if (_selectedImageBytes == null) return;
+  Future<void> _maybeUploadProfileImage(dynamic user) async {
+    if (_selectedImageBytes == null || user == null) return;
     try {
       setState(() {});
-      final ref = FirebaseStorage.instance.ref(
-        'profile_images/${user.uid}.jpg',
+      await Supabase.instance.client.storage.from('profile_images').uploadBytes(
+        '${user.id}.jpg',
+        _selectedImageBytes!,
       );
-      await ref.putData(_selectedImageBytes!);
-      final url = await ref.getDownloadURL();
-      await user.updatePhotoURL(url);
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).update(
-        {'photoUrl': url},
-      );
+      final publicUrlResponse = Supabase.instance.client.storage.from('profile_images').getPublicUrl('${user.id}.jpg');
+      final photoUrl = publicUrlResponse.publicUrl;
+      await Supabase.instance.client.from('public.profiles').update(
+        {'photoUrl': photoUrl},
+      ).eq('id', user.id);
       if (mounted) {
         setState(() {});
       }

@@ -1,7 +1,6 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class CommentSheet extends StatefulWidget {
   const CommentSheet({super.key, required this.postId});
@@ -20,12 +19,6 @@ class _CommentSheetState extends State<CommentSheet> {
   String? _userName;
   String? _userAvatar;
 
-  CollectionReference<Map<String, dynamic>> get _commentsRef =>
-      FirebaseFirestore.instance
-          .collection('posts')
-          .doc(widget.postId)
-          .collection('comments');
-
   @override
   void initState() {
     super.initState();
@@ -39,17 +32,21 @@ class _CommentSheetState extends State<CommentSheet> {
   }
 
   Future<void> _loadCurrentUserProfile() async {
-    final user = FirebaseAuth.instance.currentUser;
+    final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
     try {
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
-      final data = doc.data();
+      final response = await Supabase.instance.client
+          .from('profiles')
+          .select('name, avatar_url')
+          .eq('id', user.id)
+          .single()
+          .execute();
+
+      if (response.error != null) return;
+      final data = response.data as Map<String, dynamic>?;
       setState(() {
         _userName = data?['name'] as String? ?? user.email ?? 'OG Vibester';
-        _userAvatar = data?['avatarUrl'] as String?;
+        _userAvatar = data?['avatar_url'] as String?;
       });
     } catch (_) {
       // ignore errors, fall back to auth defaults
@@ -60,7 +57,7 @@ class _CommentSheetState extends State<CommentSheet> {
     final text = _commentController.text.trim();
     if (text.isEmpty) return;
 
-    final user = FirebaseAuth.instance.currentUser;
+    final user = Supabase.instance.client.auth.currentUser;
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please sign in to comment.')),
@@ -71,15 +68,17 @@ class _CommentSheetState extends State<CommentSheet> {
     setState(() => _isSending = true);
 
     try {
-      await _commentsRef.add({
+      final response = await Supabase.instance.client.from('comments').insert({
+        'post_id': widget.postId,
+        'author_id': user.id,
         'text': text,
-        'authorId': user.uid,
-        'authorName': _userName ?? user.email ?? 'OG Vibester',
-        'authorAvatar': _userAvatar,
-        'createdAt': FieldValue.serverTimestamp(),
-        'likesCount': 0,
-        'parentId': _replyingToId,
-      });
+        'parent_id': _replyingToId,
+      }).execute();
+
+      if (response.error != null) {
+        throw response.error!.message;
+      }
+
       setState(() {
         _commentController.clear();
         _replyingToId = null;
@@ -97,9 +96,25 @@ class _CommentSheetState extends State<CommentSheet> {
     }
   }
 
-  Future<void> _likeComment(DocumentSnapshot<Map<String, dynamic>> doc) async {
+  Future<void> _likeComment(Map<String, dynamic> comment) async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please sign in to like comments.')),
+      );
+      return;
+    }
+
+    final commentId = comment['id']?.toString();
+    if (commentId == null) return;
+
     try {
-      await doc.reference.update({'likesCount': FieldValue.increment(1)});
+      final response = await Supabase.instance.client
+          .from('comment_likes')
+          .insert({'comment_id': commentId, 'user_id': user.id}).execute();
+      if (response.error != null) {
+        throw response.error!.message;
+      }
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -108,19 +123,21 @@ class _CommentSheetState extends State<CommentSheet> {
     }
   }
 
-  Future<void> _reportComment(
-    DocumentSnapshot<Map<String, dynamic>> doc,
-  ) async {
+  Future<void> _reportComment(Map<String, dynamic> comment) async {
     final reason = await _showReportDialog();
     if (reason == null || reason.trim().isEmpty) return;
 
     try {
-      await FirebaseFirestore.instance.collection('reports').add({
-        'postId': widget.postId,
-        'commentId': doc.id,
+      final response = await Supabase.instance.client.from('reports').insert({
+        'post_id': widget.postId,
+        'comment_id': comment['id']?.toString(),
         'reason': reason.trim(),
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+      }).execute();
+
+      if (response.error != null) {
+        throw response.error!.message;
+      }
+
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
@@ -198,33 +215,35 @@ class _CommentSheetState extends State<CommentSheet> {
   }
 
   Widget _buildCommentsList() {
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: _commentsRef
-          // .orderBy('likesCount', descending: true) // Requires a composite index in Firestore
-          .orderBy('createdAt', descending: true)
-          .snapshots(),
+    return FutureBuilder<PostgrestResponse>(
+      future: Supabase.instance.client
+          .from('comments')
+          .select('*, profiles(name, surname, photo_url)')
+          .eq('post_id', widget.postId)
+          .order('created_at', ascending: true)
+          .execute(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return _buildShimmerPlaceholder();
         }
 
-        if (snapshot.hasError) {
+        if (snapshot.hasError || snapshot.data?.error != null) {
+          final error = snapshot.data?.error?.message ?? snapshot.error;
           return Center(
-            child: Text('Error loading comments: ${snapshot.error}'),
+            child: Text('Error loading comments: $error'),
           );
         }
 
-        final docs = snapshot.data?.docs ?? [];
-        if (docs.isEmpty) {
+        final data = snapshot.data?.data as List<dynamic>? ?? [];
+        if (data.isEmpty) {
           return const Center(child: Text('No comments yet. Be the first!'));
         }
 
         return ListView.builder(
-          itemCount: docs.length,
+          itemCount: data.length,
           itemBuilder: (context, index) {
-            final doc = docs[index];
-            final data = doc.data();
-            return _buildCommentTile(doc, data);
+            final comment = Map<String, dynamic>.from(data[index] as Map);
+            return _buildCommentTile(comment);
           },
         );
       },
@@ -251,16 +270,14 @@ class _CommentSheetState extends State<CommentSheet> {
     );
   }
 
-  Widget _buildCommentTile(
-    DocumentSnapshot<Map<String, dynamic>> doc,
-    Map<String, dynamic> data,
-  ) {
-    final parentId = data['parentId'] as String?;
-    final authorName = (data['authorName'] as String?) ?? 'OG Vibester';
-    final text = (data['text'] as String?) ?? '';
-    final likes = data['likesCount'] as int? ?? 0;
-    final timestamp = data['createdAt'];
-    final avatarUrl = data['authorAvatar'] as String?;
+  Widget _buildCommentTile(Map<String, dynamic> comment) {
+    final parentId = comment['parent_id'] as String?;
+    final profile = comment['profiles'] as Map<String, dynamic>?;
+    final authorName = _extractCommentAuthorName(profile);
+    final text = (comment['text'] as String?) ?? '';
+    final likes = comment['likes_count'] as int? ?? 0;
+    final timestamp = comment['created_at'];
+    final avatarUrl = (profile?['photo_url'] as String?)?.trim();
 
     return Container(
       margin: EdgeInsets.only(left: parentId == null ? 0 : 24, bottom: 12),
@@ -315,7 +332,7 @@ class _CommentSheetState extends State<CommentSheet> {
               TextButton.icon(
                 onPressed: () {
                   setState(() {
-                    _replyingToId = doc.id;
+                    _replyingToId = comment['id']?.toString();
                     _replyingToName = authorName;
                   });
                 },
@@ -323,12 +340,12 @@ class _CommentSheetState extends State<CommentSheet> {
                 label: const Text('Reply'),
               ),
               TextButton.icon(
-                onPressed: () => _likeComment(doc),
+                onPressed: () => _likeComment(comment),
                 icon: const Icon(Icons.favorite_border, size: 18),
                 label: Text('Like ($likes)'),
               ),
               TextButton.icon(
-                onPressed: () => _reportComment(doc),
+                onPressed: () => _reportComment(comment),
                 icon: const Icon(Icons.flag_outlined, size: 18),
                 label: const Text('Report'),
               ),
@@ -392,10 +409,17 @@ class _CommentSheetState extends State<CommentSheet> {
   }
 
   String _formatTimestamp(dynamic timestamp) {
-    if (timestamp is! Timestamp) {
+    DateTime? date;
+    if (timestamp is String) {
+      date = DateTime.tryParse(timestamp);
+    } else if (timestamp is DateTime) {
+      date = timestamp;
+    }
+
+    if (date == null) {
       return 'Just now';
     }
-    final date = timestamp.toDate();
+
     final difference = DateTime.now().difference(date);
     if (difference.inSeconds < 60) {
       return 'Just now';

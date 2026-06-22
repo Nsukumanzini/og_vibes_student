@@ -2,12 +2,14 @@
 import 'dart:math';
 import 'dart:ui';
 
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
+import 'dart:async';
+import 'dart:math';
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../firebase_options.dart';
 import 'home_screen.dart';
 import 'landing_screen.dart';
 
@@ -211,46 +213,27 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _initApp() async {
-    var firebaseReady = true;
     try {
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
+      await Supabase.initialize(
+        url: 'YOUR_SUPABASE_URL',
+        anonKey: 'YOUR_SUPABASE_ANON_KEY',
       ).timeout(const Duration(seconds: 8));
-    } catch (_) {
-      firebaseReady = false;
-    }
 
-    if (!firebaseReady) {
+      final session = Supabase.instance.client.auth.currentSession;
+      final user = session?.user;
+
       if (mounted) {
         setState(() {
-          _loadingText = 'Loading...';
+          _loadingText = 'Connecting to Supabase...';
         });
-      }
-      await Future.delayed(const Duration(milliseconds: 1100));
-      await _navigateTo(const LandingScreen());
-      return;
-    }
-
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        if (mounted) {
-          setState(() {
-            _loadingText = 'Welcome back!';
-          });
-        }
-
-        await Future.delayed(const Duration(milliseconds: 900));
-        if (user.phoneNumber != null && user.phoneNumber!.isNotEmpty) {
-          await _navigateTo(const HomeScreen());
-        } else {
-          await _navigateTo(const LandingScreen());
-        }
-        return;
       }
 
       await Future.delayed(const Duration(milliseconds: 900));
-      await _navigateTo(const LandingScreen());
+      if (user != null) {
+        await _navigateTo(const HomeScreen());
+      } else {
+        await _navigateTo(const LandingScreen());
+      }
     } catch (_) {
       if (!mounted) return;
       setState(() {

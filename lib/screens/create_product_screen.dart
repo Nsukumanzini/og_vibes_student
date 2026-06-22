@@ -1,10 +1,8 @@
 import 'dart:typed_data';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:og_vibes_student/widgets/vibe_scaffold.dart';
 
 class CreateProductScreen extends StatefulWidget {
@@ -26,13 +24,9 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
   bool _isNegotiable = false;
   String _category = 'Textbooks';
 
-  String? _sellerName;
-  String? _sellerCampus;
-
   @override
   void initState() {
     super.initState();
-    _loadSellerProfile();
   }
 
   @override
@@ -41,24 +35,6 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
     _priceController.dispose();
     _descriptionController.dispose();
     super.dispose();
-  }
-
-  Future<void> _loadSellerProfile() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-    try {
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
-      final data = doc.data();
-      setState(() {
-        _sellerName = data?['name'] as String? ?? user.email ?? 'OG Seller';
-        _sellerCampus = data?['campus'] as String?;
-      });
-    } catch (error) {
-      // ignore errors, fall back to auth defaults
-    }
   }
 
   InputDecoration _inputDecoration(String label, {String? prefixText}) {
@@ -100,7 +76,7 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
       return;
     }
 
-    final user = FirebaseAuth.instance.currentUser;
+    final user = Supabase.instance.client.auth.currentUser;
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please sign in to sell items.')),
@@ -119,36 +95,29 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
     setState(() => _isPosting = true);
 
     try {
-      final storage = FirebaseStorage.instance;
       final List<String> imageUrls = [];
 
       for (final image in _images) {
-        final ref = storage
-            .ref(
-              'products/${user.uid}/${DateTime.now().millisecondsSinceEpoch}_${image.name}',
-            )
-            .child('image.jpg');
-        await ref.putData(
-          image.bytes,
-          SettableMetadata(contentType: 'image/jpeg'),
-        );
-        final url = await ref.getDownloadURL();
-        imageUrls.add(url);
+        final String fileName = '${user.id}/${DateTime.now().millisecondsSinceEpoch}_${image.name}.jpg';
+        await Supabase.instance.client.storage.from('products').uploadBytes(fileName, image.bytes);
+        final publicUrl = Supabase.instance.client.storage.from('products').getPublicUrl(fileName);
+        imageUrls.add(publicUrl.data!);
       }
 
-      await FirebaseFirestore.instance.collection('products').add({
+      final response = await Supabase.instance.client.from('products').insert({
         'title': _titleController.text.trim(),
         'price': price,
         'category': _category,
         'description': _descriptionController.text.trim(),
-        'isNegotiable': _isNegotiable,
+        'is_negotiable': _isNegotiable,
         'images': imageUrls,
-        'sellerId': user.uid,
-        'sellerName': _sellerName ?? user.email ?? 'OG Seller',
-        'sellerCampus': _sellerCampus,
-        'createdAt': FieldValue.serverTimestamp(),
+        'seller_id': user.id,
         'status': 'available',
-      });
+      }).execute();
+
+      if (response.error != null) {
+        throw response.error!.message;
+      }
 
       if (!mounted) return;
       Navigator.of(context).pop();

@@ -1,8 +1,7 @@
 import 'dart:async';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../services/auth_service.dart';
 import '../widgets/vibe_scaffold.dart';
@@ -46,7 +45,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
   }
 
   Future<void> _sendVerificationEmail() async {
-    final user = FirebaseAuth.instance.currentUser;
+    final user = Supabase.instance.client.auth.currentUser;
     if (user == null || _isSending) return;
     _resetResendWindowIfNeeded();
     if (_cooldownSeconds > 0) return;
@@ -59,19 +58,17 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
     }
     setState(() => _isSending = true);
     try {
-      await FirebaseAuth.instance.setLanguageCode('en');
-      await user.sendEmailVerification();
+      final email = user.email;
+      if (email == null || email.isEmpty) {
+        throw Exception('No email available for verification.');
+      }
+      await Supabase.instance.client.auth.signInWithOtp(email: email);
       if (!mounted) return;
       _resendAttempts += 1;
       _startCooldown();
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Verification email sent!')));
-    } on FirebaseAuthException catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to send email: ${error.code}')),
-      );
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -100,29 +97,26 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
 
   void _startPolling() {
     _pollTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
-      final user = FirebaseAuth.instance.currentUser;
+      final user = Supabase.instance.client.auth.currentUser;
       if (user == null) {
         _pollTimer?.cancel();
         return;
       }
-      await user.reload();
-      final refreshedUser = FirebaseAuth.instance.currentUser;
-      if (refreshedUser?.emailVerified == true && mounted) {
+      if (user.emailConfirmedAt != null && mounted) {
         await _handleVerified();
       }
     });
   }
 
   Future<void> _handleManualCheck() async {
-    final user = FirebaseAuth.instance.currentUser;
+    final user = Supabase.instance.client.auth.currentUser;
     if (user == null) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('You are not signed in.')));
       return;
     }
-    await user.reload();
-    if (user.emailVerified && mounted) {
+    if (user.emailConfirmedAt != null && mounted) {
       await _handleVerified();
     } else {
       if (!mounted) return;
@@ -159,7 +153,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
   }
 
   Future<void> _showChangeEmailDialog() async {
-    final user = FirebaseAuth.instance.currentUser;
+    final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
     final controller = TextEditingController(text: user.email ?? '');
     var isSaving = false;
@@ -198,11 +192,13 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                           }
                           setDialogState(() => isSaving = true);
                           try {
-                            await user.verifyBeforeUpdateEmail(nextEmail);
-                            await FirebaseFirestore.instance
-                                .collection('users')
-                                .doc(user.uid)
-                                .update({'email': nextEmail});
+                            await Supabase.instance.client.auth.updateUser(
+                              UserAttributes(email: nextEmail),
+                            );
+                            await Supabase.instance.client
+                                .from('public.profiles')
+                                .update({'email': nextEmail})
+                                .eq('id', user.id);
                             if (!mounted) return;
                             if (!dialogContext.mounted) return;
                             _resendAttempts = 0;
@@ -214,22 +210,14 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                               ),
                             );
                             Navigator.of(dialogContext).pop();
-                          } on FirebaseAuthException catch (error) {
+                          } catch (error) {
                             if (!mounted) return;
                             if (!dialogContext.mounted) return;
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text(
-                                  error.message ?? 'Unable to update email.',
+                                  error.toString(),
                                 ),
-                              ),
-                            );
-                          } catch (_) {
-                            if (!mounted) return;
-                            if (!dialogContext.mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Unable to update email.'),
                               ),
                             );
                           } finally {
@@ -262,7 +250,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final email = FirebaseAuth.instance.currentUser?.email ?? 'your email';
+    final email = Supabase.instance.client.auth.currentUser?.email ?? 'your email';
     final theme = Theme.of(context);
 
     return VibeScaffold(

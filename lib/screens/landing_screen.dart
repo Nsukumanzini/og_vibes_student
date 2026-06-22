@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'dart:math';
 
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:og_vibes_student/screens/home_screen.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+
+import '../services/auth_service.dart';
 
 import 'login_screen.dart';
 import 'signup_screen.dart';
@@ -268,22 +270,17 @@ class _LandingScreenState extends State<LandingScreen>
           width: double.infinity,
           child: OutlinedButton.icon(
             onPressed: () async {
+              if (!mounted) return;
               try {
-                final credential = await FirebaseAuth.instance.signInAnonymously();
-                final user = credential.user;
-                if (user != null && mounted) {
-                  // ignore: use_build_context_synchronously
-                  Navigator.of(context).pushReplacement(
-                    MaterialPageRoute(builder: (_) => const HomeScreen()),
-                  );
-                }
-              } on FirebaseAuthException catch (e) {
-                if (mounted) {
-                  // ignore: use_build_context_synchronously
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(e.message ?? 'Guest login failed')),
-                  );
-                }
+                final authService = AuthService();
+                await authService.signInAnonymously();
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(builder: (_) => const HomeScreen()),
+                );
+              } catch (_) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Guest login is not available with Supabase.')),
+                );
               }
             },
             icon: const Icon(Icons.person_outline),
