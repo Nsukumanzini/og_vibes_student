@@ -15,7 +15,7 @@ void main() {
   });
 
   testWidgets('OgVibesApp renders material root', (tester) async {
-    await tester.pumpWidget(const OgVibesApp(firebaseReady: true,));
+    await tester.pumpWidget(const OgVibesApp());
 
     expect(find.byType(MaterialApp), findsOneWidget);
   });

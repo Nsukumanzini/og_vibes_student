@@ -1,29 +1,15 @@
-﻿import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import 'firebase_options.dart';
 import 'screens/splash_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  var firebaseReady = false;
-  try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    ).timeout(const Duration(seconds: 10));
-    firebaseReady = true;
-  } catch (e) {
-    // Firebase failed to initialize, continue without it
-    firebaseReady = false;
-  }
-  runApp(OgVibesApp(firebaseReady: firebaseReady));
+  runApp(const OgVibesApp());
 }
 
 class OgVibesApp extends StatelessWidget {
-  const OgVibesApp({super.key, required this.firebaseReady});
-
-  final bool firebaseReady;
+  const OgVibesApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -147,7 +133,7 @@ class OgVibesApp extends StatelessWidget {
       title: 'OG Vibes',
       debugShowCheckedModeBanner: false,
       theme: themed,
-      home: SplashScreen(firebaseReady: firebaseReady),
+      home: const SplashScreen(),
       builder: (context, child) {
         // Error boundary wrapper
         return MediaQuery(

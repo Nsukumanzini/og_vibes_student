@@ -251,7 +251,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Center(child: Image.asset('assets/images/gs_logo.JPG', height: 40)),
+                  child: Center(child: Image.asset('assets/images/logo.jpeg', height: 40)),
                 ),
                 const SizedBox(width: 48),
               ],

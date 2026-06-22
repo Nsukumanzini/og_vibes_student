@@ -18,7 +18,7 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="Modern campus life on tap. Connect with students, find resources, and stay in the loop.">
 
   <!-- Google Sign-In -->
   <meta name="google-signin-client_id" content="949237855418-xxxxxxxxxxxxxxxxxxxxxx.apps.googleusercontent.com">
@@ -26,14 +26,40 @@
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="og_vibes_student">
-  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <meta name="apple-mobile-web-app-title" content="OG Vibes">
+  <link rel="apple-touch-icon" href="assets/images/logo.jpeg">
 
   <!-- Favicon -->
-  <link rel="icon" type="image/png" href="favicon.png"/>
+  <link rel="icon" type="image/jpeg" href="assets/images/logo.jpeg"/>
 
-  <title>og_vibes_student</title>
+  <title>OG Vibes</title>
   <link rel="manifest" href="manifest.json">
+
+  <style>
+    html,
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #0D47A1 0%, #448AFF 55%, #E3F2FD 100%);
+      color: #ffffff;
+      font-family: Poppins, sans-serif;
+    }
+
+    #flutter_loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      text-align: center;
+      padding: 24px;
+    }
+
+    #flutter_loading h1 {
+      margin: 0;
+      font-size: 1.25rem;
+      letter-spacing: 0.05em;
+    }
+  </style>
 
   <script>
     // Configure Firebase before the app loads
@@ -41,6 +67,11 @@
   </script>
 </head>
 <body>
+  <div id="flutter_loading">
+    <div>
+      <h1>OG Vibes is waking up...</h1>
+    </div>
+  </div>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

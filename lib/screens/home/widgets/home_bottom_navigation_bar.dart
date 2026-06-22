@@ -29,10 +29,10 @@ class HomeBottomNavigationBar extends StatelessWidget {
           label: 'Academic',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.notifications_none, color: Theme.of(context).colorScheme.secondary),
+          icon: Icon(Icons.notifications_none, color: Colors.amber),
           activeIcon: Icon(
             Icons.notifications_active,
-            color: Theme.of(context).colorScheme.secondary,
+            color: Colors.amber,
           ),
           label: 'Alerts',
         ),

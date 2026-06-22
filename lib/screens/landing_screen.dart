@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:math';
-import 'dart:ui';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -25,31 +24,19 @@ class _LandingScreenState extends State<LandingScreen>
     'Study smarter, not harder.',
   ];
 
-  late final AnimationController _bounceController;
-  late final Animation<double> _bounceAnimation;
-  late final AnimationController _ambientController;
+  bool _animationsEnabled = false;
+  late AnimationController _bounceController;
+  Animation<double>? _bounceAnimation;
+  late AnimationController _ambientController;
   Timer? _taglineTimer;
   int _taglineIndex = 0;
 
   @override
   void initState() {
     super.initState();
-    _bounceController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2200),
-    )..repeat(reverse: true);
-    _bounceAnimation = Tween<double>(begin: 0.95, end: 1.05).animate(
-      CurvedAnimation(parent: _bounceController, curve: Curves.easeInOutBack),
-    );
-    _ambientController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 14),
-    )..repeat();
-    _taglineTimer = Timer.periodic(const Duration(milliseconds: 2600), (_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      setState(() {
-        _taglineIndex = (_taglineIndex + 1) % _taglines.length;
-      });
+      _startLandingAnimations();
     });
   }
 
@@ -68,36 +55,50 @@ class _LandingScreenState extends State<LandingScreen>
     return Scaffold(
       body: Stack(
         children: [
-          AnimatedBuilder(
-            animation: _ambientController,
-            builder: (context, child) {
-              final t = _ambientController.value;
-              final top = Color.lerp(
-                const Color(0xFFE9F1FF),
-                const Color(0xFFE0F7FA),
-                t,
-              )!;
-              final mid = Color.lerp(
-                const Color(0xFFDDE7FF),
-                const Color(0xFFE3F2FD),
-                1 - t,
-              )!;
-              final bottom = Color.lerp(
-                const Color(0xFFF5F7FA),
-                const Color(0xFFF0F4FF),
-                t,
-              )!;
-              return Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [top, mid, bottom],
+          _animationsEnabled
+              ? AnimatedBuilder(
+                  animation: _ambientController,
+                  builder: (context, child) {
+                    final t = _ambientController.value;
+                    final top = Color.lerp(
+                      const Color(0xFFE9F1FF),
+                      const Color(0xFFE0F7FA),
+                      t,
+                    )!;
+                    final mid = Color.lerp(
+                      const Color(0xFFDDE7FF),
+                      const Color(0xFFE3F2FD),
+                      1 - t,
+                    )!;
+                    final bottom = Color.lerp(
+                      const Color(0xFFF5F7FA),
+                      const Color(0xFFF0F4FF),
+                      t,
+                    )!;
+                    return Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [top, mid, bottom],
+                        ),
+                      ),
+                    );
+                  },
+                )
+              : Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Color(0xFFE9F1FF),
+                        Color(0xFFE3F2FD),
+                        Color(0xFFF5F7FA),
+                      ],
+                    ),
                   ),
                 ),
-              );
-            },
-          ),
           _buildFloatingBlobs(),
           _buildSparkles(),
           SafeArea(
@@ -125,93 +126,100 @@ class _LandingScreenState extends State<LandingScreen>
   Widget _buildHeroCard(ThemeData theme) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(32),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.7),
-            borderRadius: BorderRadius.circular(32),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.6)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.08),
-                blurRadius: 24,
-                offset: const Offset(0, 16),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.9),
+          borderRadius: BorderRadius.circular(32),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.7)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 24,
+              offset: const Offset(0, 16),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            _buildLogoCircle(),
+            const SizedBox(height: 18),
+            Text(
+              'Welcome to OG Vibes',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: const Color(0xFF0D47A1),
               ),
-            ],
-          ),
-          child: Column(
-            children: [
-              ScaleTransition(
-                scale: _bounceAnimation,
-                child: Container(
-                  height: 110,
-                  width: 110,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(26),
-                    border: Border.all(
-                      color: const Color(0xFF2962FF),
-                      width: 3,
-                    ),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0xFF42A5F5),
-                        blurRadius: 20,
-                        offset: Offset(0, 10),
-                      ),
-                    ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(22),
-                    child: Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: Image.asset(
-                        'assets/images/gs_logo.JPG',
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 18),
-              Text(
-                'Welcome to OG Vibes',
+            ),
+            const SizedBox(height: 8),
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 400),
+              child: Text(
+                _taglines[_taglineIndex],
+                key: ValueKey(_taglineIndex),
                 textAlign: TextAlign.center,
-                style: theme.textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: const Color(0xFF0D47A1),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: Colors.black54,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(height: 8),
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 400),
-                child: Text(
-                  _taglines[_taglineIndex],
-                  key: ValueKey(_taglineIndex),
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: Colors.black54,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 18),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                alignment: WrapAlignment.center,
-                children: const [
-                  _TrustBadge(label: 'Official student platform'),
-                  _TrustBadge(label: 'Trusted by campuses'),
-                ],
-              ),
-            ],
+            ),
+            const SizedBox(height: 18),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              alignment: WrapAlignment.center,
+              children: const [
+                _TrustBadge(label: 'Official student platform'),
+                _TrustBadge(label: 'Trusted by campuses'),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLogoCircle() {
+    final circle = Container(
+      height: 110,
+      width: 110,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(
+          color: const Color(0xFF2962FF),
+          width: 3,
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0xFF42A5F5),
+            blurRadius: 20,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(22),
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: Image.asset(
+            'assets/images/logo.jpeg',
+            fit: BoxFit.contain,
           ),
         ),
       ),
+    );
+
+    if (!_animationsEnabled || _bounceAnimation == null) {
+      return circle;
+    }
+
+    return ScaleTransition(
+      scale: _bounceAnimation!,
+      child: circle,
     );
   }
 
@@ -222,9 +230,7 @@ class _LandingScreenState extends State<LandingScreen>
           width: double.infinity,
           child: ElevatedButton.icon(
             onPressed: () {
-              Navigator.of(
-                context,
-              ).push(MaterialPageRoute(builder: (_) => const LoginScreen()));
+              Navigator.of(context).push(MaterialPageRoute(builder: (_) => const LoginScreen()));
             },
             icon: const Icon(Icons.login),
             label: const Text('Login'),
@@ -296,6 +302,28 @@ class _LandingScreenState extends State<LandingScreen>
   }
 
   Widget _buildFloatingBlobs() {
+    if (!_animationsEnabled) {
+      return Stack(
+        children: [
+          Positioned(
+            top: -80,
+            left: -40,
+            child: _blob(const Color(0xFF2962FF), 220),
+          ),
+          Positioned(
+            top: 120,
+            right: -60,
+            child: _blob(const Color(0xFF00B0FF), 180),
+          ),
+          Positioned(
+            bottom: -60,
+            left: 40,
+            child: _blob(const Color(0xFF26C6DA), 200),
+          ),
+        ],
+      );
+    }
+
     return AnimatedBuilder(
       animation: _ambientController,
       builder: (context, child) {
@@ -325,6 +353,10 @@ class _LandingScreenState extends State<LandingScreen>
   }
 
   Widget _buildSparkles() {
+    if (!_animationsEnabled) {
+      return const SizedBox.shrink();
+    }
+
     final points = [
       const Offset(0.85, 0.12),
       const Offset(0.72, 0.22),
@@ -381,6 +413,31 @@ class _LandingScreenState extends State<LandingScreen>
         ),
       ),
     );
+  }
+
+  void _startLandingAnimations() {
+    _bounceController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2200),
+    );
+    _bounceAnimation = Tween<double>(begin: 0.95, end: 1.05).animate(
+      CurvedAnimation(parent: _bounceController, curve: Curves.easeInOutBack),
+    );
+    _ambientController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 14),
+    );
+    _bounceController.repeat(reverse: true);
+    _ambientController.repeat();
+    _taglineTimer = Timer.periodic(const Duration(milliseconds: 2600), (_) {
+      if (!mounted) return;
+      setState(() {
+        _taglineIndex = (_taglineIndex + 1) % _taglines.length;
+      });
+    });
+    setState(() {
+      _animationsEnabled = true;
+    });
   }
 
   Widget _buildApplyOnlineCard(ThemeData theme) {

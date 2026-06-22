@@ -10,55 +10,47 @@ class IcassCheckerScreen extends StatefulWidget {
 }
 
 class _IcassCheckerScreenState extends State<IcassCheckerScreen> {
-  final TextEditingController _assignmentController = TextEditingController();
-  final TextEditingController _testController = TextEditingController();
-  final TextEditingController _internalExamController = TextEditingController();
-
-  double? _dpMark;
-  double? _requiredExamMark;
-  bool _showResult = false;
-
-  @override
-  void dispose() {
-    _assignmentController.dispose();
-    _testController.dispose();
-    _internalExamController.dispose();
-    super.dispose();
-  }
+  // Mock student ICASS data structure. Replace with Firestore fetch in integration.
+  // Map<subjectCode, {title, lecturer, marks: {Test1: value?, Assignment1: value?, Test2:..., ISAT:, InternalExam:}}>
+  final Map<String, Map<String, dynamic>> _studentIcass = {
+    'MATH_N4': {
+      'title': 'Mathematics N4',
+      'lecturer': 'Dr. Smith',
+      'marks': {
+        'Test 1': 72.0,
+        'Assignment 1': 65.0,
+        'Test 2': null,
+        'Assignment 2': null,
+        'ISAT': null,
+        'Internal Exam': 68.0,
+      }
+    },
+    'CP_N4': {
+      'title': 'Computer Practice N4',
+      'lecturer': 'Prof. Johnson',
+      'marks': {
+        'Test 1': 80.0,
+        'Assignment 1': 75.0,
+        'Test 2': 70.0,
+        'Assignment 2': 78.0,
+        'ISAT': null,
+        'Internal Exam': null,
+      }
+    },
+  };
 
   @override
   Widget build(BuildContext context) {
     return VibeScaffold(
-      appBar: AppBar(title: const Text('ICASS / DP Checker')),
-      body: SingleChildScrollView(
+      appBar: AppBar(title: const Text('My ICASS Marks')),
+      body: Padding(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 110),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
+          children: [
             _buildTopBanner(),
-            const SizedBox(height: 14),
-            _buildInputCard(),
-            const SizedBox(height: 14),
-            SizedBox(
-              height: 52,
-              child: ElevatedButton.icon(
-                onPressed: _calculate,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1565C0),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-                icon: const Icon(Icons.calculate_rounded),
-                label: const Text(
-                  'Calculate DP & Exam Target',
-                  style: TextStyle(fontWeight: FontWeight.w800),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            if (_showResult) _buildResultCard(),
+            const SizedBox(height: 12),
+            Expanded(child: _buildSubjectsList()),
           ],
         ),
       ),
@@ -77,7 +69,7 @@ class _IcassCheckerScreenState extends State<IcassCheckerScreen> {
         ),
         boxShadow: <BoxShadow>[
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.15),
+            color: Colors.black.withOpacity(0.08),
             blurRadius: 14,
             offset: const Offset(0, 6),
           ),
@@ -87,7 +79,7 @@ class _IcassCheckerScreenState extends State<IcassCheckerScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Text(
-            'ICASS Target Calculator',
+            'My ICASS Overview',
             style: TextStyle(
               color: Colors.white,
               fontSize: 20,
@@ -96,7 +88,7 @@ class _IcassCheckerScreenState extends State<IcassCheckerScreen> {
           ),
           SizedBox(height: 6),
           Text(
-            'Find out what you need to pass your DHET Exam.',
+            'Tap a subject to view detailed ICASS marks provided by your lecturer.',
             style: TextStyle(
               color: Color(0xFFE3F2FD),
               fontWeight: FontWeight.w600,
@@ -107,128 +99,95 @@ class _IcassCheckerScreenState extends State<IcassCheckerScreen> {
     );
   }
 
-  Widget _buildInputCard() {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE3EAF2)),
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+  Widget _buildSubjectsList() {
+    final keys = _studentIcass.keys.toList();
+    if (keys.isEmpty) {
+      return const Center(child: Text('No ICASS records available yet.'));
+    }
+    return ListView.separated(
+      itemCount: keys.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      itemBuilder: (context, index) {
+        final key = keys[index];
+        final subj = _studentIcass[key]!;
+        final marks = Map<String, double?>.from(subj['marks'] as Map);
+        final icassPercent = _computeIcassPercentage(marks);
+        return Card(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            title: Text(subj['title'], style: const TextStyle(fontWeight: FontWeight.w800)),
+            subtitle: Text('Lecturer: ${subj['lecturer']}'),
+            trailing: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text('${icassPercent.toStringAsFixed(1)}%', style: const TextStyle(fontWeight: FontWeight.w700)),
+                const SizedBox(height: 6),
+                FilledButton(
+                  onPressed: () => _openSubjectDetails(context, key, subj),
+                  child: const Text('View'),
+                ),
+              ],
+            ),
           ),
-        ],
-      ),
-      child: Column(
-        children: <Widget>[
-          _markField('Assignment 1 Mark (%)', _assignmentController),
-          const SizedBox(height: 12),
-          _markField('Test 1 Mark (%)', _testController),
-          const SizedBox(height: 12),
-          _markField('Internal Exam Mark (%)', _internalExamController),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  Widget _markField(String label, TextEditingController controller) {
-    return TextField(
-      controller: controller,
-      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      decoration: InputDecoration(
-        labelText: label,
-        hintText: 'Enter value between 0 and 100',
-        filled: true,
-        fillColor: const Color(0xFFF7F9FC),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-      ),
-    );
+  double _computeIcassPercentage(Map<String, double?> marks) {
+    // Average of available components. Future: use configured weights per subject.
+    final values = marks.values.where((v) => v != null).map((v) => v!).toList();
+    if (values.isEmpty) return 0.0;
+    final sum = values.reduce((a, b) => a + b);
+    return sum / values.length;
   }
 
-  Widget _buildResultCard() {
-    final double dp = _dpMark ?? 0;
-
-    if (dp < 40) {
-      return Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: const Color(0xFFFFEBEE),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFEF9A9A)),
-        ),
-        child: Text(
-          'Warning: Your DP is ${dp.toStringAsFixed(1)}%. '
-          'You need 40% to qualify to write the final exam.',
-          style: const TextStyle(
-            color: Color(0xFFC62828),
-            fontWeight: FontWeight.w800,
-            height: 1.35,
+  void _openSubjectDetails(BuildContext context, String code, Map<String, dynamic> subj) {
+    final marks = Map<String, double?>.from(subj['marks'] as Map);
+    final icassPercent = _computeIcassPercentage(marks);
+    final requiredExam = ((40 - (0.4 * icassPercent)) / 0.6).clamp(0, 100);
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) {
+      return Scaffold(
+        appBar: AppBar(title: Text(subj['title'])),
+        body: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Lecturer: ${subj['lecturer']}', style: const TextStyle(fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 8),
+                      Text('ICASS Percentage: ${icassPercent.toStringAsFixed(1)}%', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                      const SizedBox(height: 8),
+                      Text('To qualify to sit the final exam you must have 40% overall. Based on current ICASS you would need at least ${requiredExam.toStringAsFixed(1)}% in the exam.'),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: ListView(
+                  children: marks.keys.map((component) {
+                    final val = marks[component];
+                    return ListTile(
+                      title: Text(component),
+                      subtitle: Text(val == null ? 'No marks yet' : '${val.toStringAsFixed(1)}%'),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ],
           ),
         ),
       );
-    }
-
-    final double requiredExam = _requiredExamMark ?? 0;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFE8F5E9),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFA5D6A7)),
-      ),
-      child: Text(
-        'Qualified! Your ICASS DP is ${dp.toStringAsFixed(1)}%. '
-        'Because ICASS counts for 40% and the Exam counts for 60%, '
-        'you need to score at least ${requiredExam.toStringAsFixed(1)}% '
-        'in the final exam to achieve a 40% passing grade.',
-        style: const TextStyle(
-          color: Color(0xFF2E7D32),
-          fontWeight: FontWeight.w800,
-          height: 1.35,
-        ),
-      ),
-    );
-  }
-
-  void _calculate() {
-    final double? assignment = _parseMark(_assignmentController.text);
-    final double? test = _parseMark(_testController.text);
-    final double? internalExam = _parseMark(_internalExamController.text);
-
-    if (assignment == null || test == null || internalExam == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter valid marks between 0 and 100.'),
-        ),
-      );
-      return;
-    }
-
-    final double dp = (assignment + test + internalExam) / 3;
-    final double needed = (40 - (0.4 * dp)) / 0.6;
-
-    setState(() {
-      _dpMark = dp;
-      _requiredExamMark = needed.clamp(0, 100).toDouble();
-      _showResult = true;
-    });
-  }
-
-  double? _parseMark(String raw) {
-    final double? value = double.tryParse(raw.trim());
-    if (value == null) {
-      return null;
-    }
-    if (value < 0 || value > 100) {
-      return null;
-    }
-    return value;
+    }));
   }
 }
+

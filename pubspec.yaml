@@ -157,5 +157,5 @@ flutter:
 flutter_icons:
   android: true
   ios: true
-  image_path: "assets/images/gs_logo.JPG"
+  image_path: "assets/images/logo.jpeg"
   min_sdk_android: 21

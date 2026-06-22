@@ -2,18 +2,17 @@
 import 'dart:math';
 import 'dart:ui';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../firebase_options.dart';
 import 'home_screen.dart';
 import 'landing_screen.dart';
 
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({super.key, this.firebaseReady = true});
-
-  final bool firebaseReady;
+  const SplashScreen({super.key});
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -51,7 +50,6 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void initState() {
     super.initState();
-    _showOfflineHint = !widget.firebaseReady;
     _quoteOfTheDay = _quotes[Random().nextInt(_quotes.length)];
     _logoController = AnimationController(
       vsync: this,
@@ -213,49 +211,37 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _initApp() async {
-    if (!widget.firebaseReady) {
+    var firebaseReady = true;
+    try {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      ).timeout(const Duration(seconds: 8));
+    } catch (_) {
+      firebaseReady = false;
+    }
+
+    if (!firebaseReady) {
       if (mounted) {
         setState(() {
           _loadingText = 'Loading...';
         });
       }
-      await Future.delayed(const Duration(milliseconds: 1500));
+      await Future.delayed(const Duration(milliseconds: 1100));
       await _navigateTo(const LandingScreen());
       return;
     }
 
     try {
       final user = FirebaseAuth.instance.currentUser;
-
       if (user != null) {
-        final minimumDelay = Future.delayed(const Duration(milliseconds: 1500));
-        final userDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .get()
-            .timeout(const Duration(seconds: 5));
-
-        await FirebaseFirestore.instance
-            .collection('notifications')
-            .limit(1)
-            .get()
-            .timeout(const Duration(seconds: 5));
-
         if (mounted) {
-          final data = userDoc.data();
-          final displayName = (data?['displayName'] as String?)?.trim();
-          final firstName = _firstNameFrom(displayName);
           setState(() {
-            _loadingText = 'Welcome back, $firstName!';
+            _loadingText = 'Welcome back!';
           });
         }
 
-        await user.reload();
-        final refreshedUser = FirebaseAuth.instance.currentUser;
-        await minimumDelay;
-        // Phone verification: if user is signed in, phone is verified
-        if (refreshedUser?.phoneNumber != null &&
-            refreshedUser!.phoneNumber!.isNotEmpty) {
+        await Future.delayed(const Duration(milliseconds: 900));
+        if (user.phoneNumber != null && user.phoneNumber!.isNotEmpty) {
           await _navigateTo(const HomeScreen());
         } else {
           await _navigateTo(const LandingScreen());
@@ -263,14 +249,15 @@ class _SplashScreenState extends State<SplashScreen>
         return;
       }
 
-      await Future.delayed(const Duration(milliseconds: 1500));
+      await Future.delayed(const Duration(milliseconds: 900));
       await _navigateTo(const LandingScreen());
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
       setState(() {
         _loadingText = 'Loading...';
+        _showOfflineHint = true;
       });
-      await Future.delayed(const Duration(milliseconds: 800));
+      await Future.delayed(const Duration(milliseconds: 700));
       await _navigateTo(const LandingScreen());
     }
   }
@@ -342,7 +329,7 @@ class _SplashScreenState extends State<SplashScreen>
               child: Padding(
                 padding: const EdgeInsets.all(10),
                 child: Image.asset(
-                  'assets/images/gs_logo.JPG',
+                  'assets/images/logo.jpeg',
                   fit: BoxFit.contain,
                 ),
               ),

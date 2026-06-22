@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:og_vibes_student/widgets/vibe_scaffold.dart';
 
 class PortalScreen extends StatefulWidget {
   const PortalScreen({super.key});
@@ -22,7 +23,7 @@ class _PortalScreenState extends State<PortalScreen> {
   void initState() {
     super.initState();
     _controller = WebViewController()
-      ..setBackgroundColor(Colors.transparent)
+      ..setBackgroundColor(Colors.white)
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setNavigationDelegate(
         NavigationDelegate(
@@ -34,41 +35,83 @@ class _PortalScreenState extends State<PortalScreen> {
               _progress = 1;
               _historyLog.add(url);
             });
+            _applyPortalReadabilityStyles();
           },
         ),
       )
       ..loadRequest(Uri.parse(_initialUrl));
   }
 
+  void _applyPortalReadabilityStyles() {
+    const script = '''
+      const body = document.body;
+      if (body) {
+        body.style.backgroundColor = '#ffffff';
+        body.style.color = '#111111';
+        body.style.fontSize = '16px';
+        body.style.lineHeight = '1.6';
+      }
+      const headings = document.querySelectorAll('h1, h2, h3, h4, h5, h6');
+      headings.forEach(h => {
+        h.style.color = '#0b2545';
+        h.style.fontWeight = '700';
+      });
+      const links = document.querySelectorAll('a');
+      links.forEach(a => {
+        a.style.color = '#1a73e8';
+      });
+      const inputs = document.querySelectorAll('input, textarea, select');
+      inputs.forEach(i => {
+        i.style.color = '#111111';
+        i.style.fontSize = '16px';
+      });
+    ''';
+    _controller.runJavaScript(script);
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (kIsWeb) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Student Portal')),
-        body: const Center(
-          child: Padding(
-            padding: EdgeInsets.all(24),
-            child: Text(
-              'The in-app browser is best experienced on mobile. Please use a phone build for full functionality.',
-              textAlign: TextAlign.center,
+    final child = kIsWeb
+        ? const Center(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: Text(
+                'The portal experience is best on mobile. Please use the OG Vibes app on your phone for the full portal webview.',
+                textAlign: TextAlign.center,
+              ),
             ),
-          ),
-        ),
-      );
-    }
+          )
+        : Stack(
+            children: [
+              Positioned.fill(child: WebViewWidget(controller: _controller)),
+              _buildSecureHeader(),
+              _buildWatermark(),
+              _buildBottomNavigation(),
+              _buildSmartTools(),
+            ],
+          );
 
-    return Scaffold(
-      backgroundColor: const Color(0xFF07182C),
-      body: SafeArea(
-        child: Stack(
-          children: [
-            Positioned.fill(child: WebViewWidget(controller: _controller)),
-            _buildSecureHeader(),
-            _buildWatermark(),
-            _buildBottomNavigation(),
-            _buildSmartTools(),
+    return VibeScaffold(
+      appBar: AppBar(
+        title: const Text('Student Portal'),
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black87,
+        elevation: 0,
+      ),
+      body: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 24,
+              offset: const Offset(0, 12),
+            ),
           ],
         ),
+        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        clipBehavior: Clip.hardEdge,
+        child: ClipRRect(borderRadius: BorderRadius.circular(24), child: child),
       ),
     );
   }

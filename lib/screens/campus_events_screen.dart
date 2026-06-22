@@ -41,7 +41,12 @@ class _CampusEventsScreenState extends State<CampusEventsScreen> {
   @override
   Widget build(BuildContext context) {
     return VibeScaffold(
-      appBar: AppBar(title: const Text('Campus Events')),
+      appBar: AppBar(title: const Text('Events')),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showCreateEventSheet(context),
+        child: const Icon(Icons.add),
+        tooltip: 'Create Event',
+      ),
       body: FutureBuilder<Map<String, dynamic>>(
         future: _eventFuture,
         builder: (context, snapshot) {
@@ -77,6 +82,66 @@ class _CampusEventsScreenState extends State<CampusEventsScreen> {
             ),
           );
         },
+      ),
+    );
+  }
+
+  void _showCreateEventSheet(BuildContext context) {
+    final titleCtrl = TextEditingController();
+    final venueCtrl = TextEditingController();
+    final dateCtrl = TextEditingController();
+    final descCtrl = TextEditingController();
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Create Event', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+              const SizedBox(height: 12),
+              TextField(controller: titleCtrl, decoration: const InputDecoration(labelText: 'Title')),
+              TextField(controller: dateCtrl, decoration: const InputDecoration(labelText: 'Date')),
+              TextField(controller: venueCtrl, decoration: const InputDecoration(labelText: 'Venue')),
+              TextField(controller: descCtrl, decoration: const InputDecoration(labelText: 'Description'), maxLines: 3),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        final newEvent = {
+                          'title': titleCtrl.text.isEmpty ? 'Untitled Event' : titleCtrl.text,
+                          'venue': venueCtrl.text.isEmpty ? 'TBA' : venueCtrl.text,
+                          'date': dateCtrl.text.isEmpty ? 'TBA' : dateCtrl.text,
+                          'description': descCtrl.text.isEmpty ? '' : descCtrl.text,
+                          'agenda': <String>[],
+                        };
+
+                        setState(() {
+                          _eventFuture = Future.value(newEvent);
+                        });
+
+                        Navigator.of(ctx).pop();
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Event created')));
+                      },
+                      child: const Text('Create Event'),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -39,19 +39,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return VibeScaffold(
-      appBar: AppBar(
-        title: const Text('Profile'),
-        actions: [
-          IconButton(
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Settings panel coming soon.')),
-              );
-            },
-            icon: const Icon(Icons.settings),
-          ),
-        ],
-      ),
       body: FutureBuilder<Map<String, dynamic>>(
         future: _profileFuture,
         builder: (context, snapshot) {
@@ -81,27 +68,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildProfile(Map<String, dynamic> profile) {
-    // ignore: unused_local_variable
     final progress = (profile['progress'] as double).clamp(0.0, 1.0);
 
     return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF0D47A1), Color(0xFF2962FF), Color(0xFF6200EA)],
-        ),
-      ),
+      color: Colors.grey.shade100,
       child: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
           child: Column(
             children: [
-              _buildHeader(profile),
-              const SizedBox(height: 20),
-              _buildStats(profile),
-              const SizedBox(height: 20),
-              _buildDetails(profile),
+              _buildHeader(profile, progress),
+              const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Column(
+                  children: [
+                    _buildStats(profile),
+                    const SizedBox(height: 16),
+                    _buildDetails(profile),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
@@ -109,89 +95,117 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildHeader(Map<String, dynamic> profile) {
-    final progress = (profile['progress'] as double).clamp(0.0, 1.0);
-
+  Widget _buildHeader(Map<String, dynamic> profile, double progress) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(22),
-      decoration: _glassDecoration(),
+      padding: const EdgeInsets.fromLTRB(20, 28, 20, 24),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF1E3A8A), Color(0xFF3F51B5)],
+        ),
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(28),
+          bottomRight: Radius.circular(28),
+        ),
+      ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(4),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 2.6),
-            ),
-            child: const CircleAvatar(
-              radius: 52,
-              backgroundColor: Color(0x332962FF),
-              child: Icon(Icons.person, size: 50, color: Colors.white),
-            ),
-          ),
-          const SizedBox(height: 14),
           Row(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(
-                profile['name'] as String,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.w800,
+              Container(
+                width: 84,
+                height: 84,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withOpacity(0.15),
+                  border: Border.all(color: Colors.white24),
+                ),
+                child: const Icon(Icons.person, size: 42, color: Colors.white),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      profile['name'] as String,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      profile['course'] as String,
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      profile['campus'] as String,
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(width: 8),
-              const Icon(Icons.verified, color: Color(0xFF69F0AE), size: 22),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            profile['course'] as String,
-            style: const TextStyle(
+          const SizedBox(height: 18),
+          const Text(
+            'Your student dashboard for campus life and study updates',
+            style: TextStyle(
               color: Colors.white70,
               fontSize: 14,
-              fontWeight: FontWeight.w600,
+              height: 1.4,
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 18),
           Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(14),
+              color: Colors.white.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(16),
             ),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Text(
-                      profile['level'] as String,
-                      style: const TextStyle(
+                    const Text(
+                      'Profile complete',
+                      style: TextStyle(
                         color: Colors.white,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                     const Spacer(),
                     Text(
                       '${(progress * 100).round()}%',
                       style: const TextStyle(
-                        color: Color(0xFF69F0AE),
-                        fontWeight: FontWeight.w800,
+                        color: Color(0xFFB3E5FC),
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 10),
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(12),
                   child: LinearProgressIndicator(
                     value: progress,
                     minHeight: 10,
-                    backgroundColor: Colors.white.withValues(alpha: 0.2),
-                    valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF69F0AE)),
+                    backgroundColor: Colors.white24,
+                    valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF8C9EFF)),
                   ),
                 ),
               ],
@@ -271,14 +285,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
-      decoration: _glassDecoration(),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
             'Academic Profile',
             style: TextStyle(
-              color: Colors.white,
+              color: Color(0xFF1A237E),
               fontWeight: FontWeight.w800,
               fontSize: 18,
             ),
@@ -289,9 +313,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _detailRow(Icons.location_on, 'Campus', profile['campus'] as String),
           const SizedBox(height: 10),
           _detailRow(
-            Icons.workspace_premium,
-            'Status',
-            'High-achieving student and active campus contributor',
+            Icons.lightbulb_outline,
+            'Student type',
+            'Campus learner and study collaborator',
           ),
         ],
       ),

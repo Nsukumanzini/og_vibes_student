@@ -29,10 +29,11 @@ class _SignupScreenState extends State<SignupScreen>
   StateSetter? _mintingDialogSetState;
   // --- Controllers ---
   final PageController _pageController = PageController();
+  final TextEditingController _nicknameController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _surnameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _studentNumberController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
       TextEditingController();
@@ -45,7 +46,7 @@ class _SignupScreenState extends State<SignupScreen>
 
   // --- Logic & State ---
   int _currentStep = 0;
-  final int _totalSteps = 4;
+  final int _totalSteps = 3;
   String? _stepError;
   bool _isStepLoading = false;
   String _selectedCampus = '';
@@ -55,11 +56,14 @@ class _SignupScreenState extends State<SignupScreen>
   bool _isNated = true;
   bool _agreedToCode = false;
   String? _campusError;
+  String? _nicknameError;
   String? _nameError;
   String? _surnameError;
+  String? _dobError;
   String? _passwordError;
   String? _confirmPasswordError;
   bool _isEmailValid = false;
+  DateTime? _dateOfBirth;
   // Phone verification removed
 
   // Add other variables and methods as needed
@@ -157,10 +161,11 @@ class _SignupScreenState extends State<SignupScreen>
     _passwordFocusNode.dispose();
     _confirmPasswordFocusNode.dispose();
     _confettiController.dispose();
+    _nicknameController.dispose();
     _nameController.dispose();
     _surnameController.dispose();
     _emailController.dispose();
-    _phoneController.dispose();
+    _studentNumberController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     _pageController.dispose();
@@ -175,61 +180,38 @@ class _SignupScreenState extends State<SignupScreen>
     });
 
     if (_currentStep == 0) {
-      // Validate Credentials (no phone verification)
-      final email = _emailController.text.trim();
-      final password = _passwordController.text.trim();
-      final confirmPassword = _confirmPasswordController.text.trim();
-      bool emailValid = email.isNotEmpty && _emailRegex.hasMatch(email);
-      bool passValid = password.isNotEmpty && password.length >= 6;
-      bool confirmValid =
-          confirmPassword.isNotEmpty && confirmPassword == password;
-
-      setState(() {
-        _passwordError = passValid
-            ? null
-            : 'Use at least 6 characters for your password.';
-        _confirmPasswordError = confirmValid
-            ? null
-            : 'Passwords do not match. Please re-type.';
-      });
-
-      if (!emailValid) _emailShakeController.shake();
-      if (!passValid) _passwordShakeController.shake();
-      if (!confirmValid) _confirmPasswordShakeController.shake();
-
-      if (!emailValid || !passValid || !confirmValid) {
-        setState(() {
-          _stepError = 'Please fill all required fields correctly.';
-        });
-      } else {
-        canProceed = true;
-      }
-    } else if (_currentStep == 1) {
-      // Validate Personal Info (Who are you step)
+      final nickname = _nicknameController.text.trim();
       final name = _nameController.text.trim();
       final surname = _surnameController.text.trim();
+      final dobValid = _dateOfBirth != null;
+      bool nicknameValid = nickname.isNotEmpty && nickname.length >= 3;
       bool nameValid = name.isNotEmpty;
       bool surnameValid = surname.isNotEmpty;
 
       setState(() {
+        _nicknameError = nicknameValid
+            ? null
+            : 'Nickname is required (3+ characters).';
         _nameError = nameValid ? null : 'First name is required.';
         _surnameError = surnameValid ? null : 'Surname is required.';
+        _dobError = dobValid ? null : 'Date of birth is required.';
       });
 
-      // Only shake and show error if actually empty
+      if (!nicknameValid) _nameShakeController.shake();
       if (!nameValid) _nameShakeController.shake();
       if (!surnameValid) _surnameShakeController.shake();
 
-      if (nameValid && surnameValid) {
+      if (nicknameValid && nameValid && surnameValid && dobValid) {
         canProceed = true;
       } else {
         setState(() {
-          _stepError = 'Please fill all required fields.';
+          _stepError = 'Please complete your personal information.';
         });
       }
-    } else if (_currentStep == 2) {
+    } else if (_currentStep == 1) {
       final campusValid = _selectedCampus.trim().isNotEmpty;
-      final agreedValid = _agreedToCode;
+      final departmentValid = _selectedDepartment.trim().isNotEmpty;
+      final levelValid = _selectedLevel.trim().isNotEmpty;
 
       setState(() {
         _campusError = campusValid ? null : 'Please select your campus.';
@@ -237,16 +219,12 @@ class _SignupScreenState extends State<SignupScreen>
 
       if (!campusValid) _campusShakeController.shake();
 
-      if (!campusValid) {
-        setState(() {
-          _stepError = 'Please select your campus.';
-        });
-      } else if (!agreedValid) {
-        setState(() {
-          _stepError = 'Please accept the Terms and Privacy Policy.';
-        });
-      } else {
+      if (campusValid && departmentValid && levelValid) {
         canProceed = true;
+      } else {
+        setState(() {
+          _stepError = 'Please complete your academic profile.';
+        });
       }
     }
 
@@ -391,13 +369,9 @@ class _SignupScreenState extends State<SignupScreen>
                     physics:
                         const NeverScrollableScrollPhysics(), // Prevent swiping
                     children: [
-                      _buildStep1Credentials(),
-                      // _buildStep2Personal() was removed, use correct step widget or remove this line
-                      // If step 2 is personal info, use _buildStep2Personal() or the correct widget here.
-                      // For now, comment out to fix error.
-                      //_buildStep2Personal(),
-                      _buildStep3Academic(),
-                      _buildStep4Review(),
+                      _buildStep1Personal(),
+                      _buildStep2Academic(),
+                      _buildStep3Security(),
                     ],
                   ),
                 ),
@@ -424,71 +398,18 @@ class _SignupScreenState extends State<SignupScreen>
   String _getHeaderTitle() {
     switch (_currentStep) {
       case 0:
-        return "Register 🔐";
+        return "Personal Info 🧑‍🎓";
       case 1:
-        return "Who are you? 😎";
-      case 2:
         return "Academic Profile 🎓";
-      case 3:
-        return "Review & Submit ✅";
+      case 2:
+        return "Security 🔐";
       default:
         return "Join Us";
     }
   }
 
-  // --- STEP 1: CREDENTIALS ---
-  Widget _buildStep1Credentials() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (_stepError != null) _buildStepErrorBanner(_stepError!),
-          const Text(
-            'Credentials',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF0D47A1),
-            ),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            "Let's start with the basics.",
-            style: TextStyle(fontSize: 16, color: Colors.black54),
-          ),
-          const SizedBox(height: 32),
-          _buildEmailField(),
-          const SizedBox(height: 24),
-          _buildPhoneField(),
-          const SizedBox(height: 24),
-          _buildPasswordField(),
-          const SizedBox(height: 24),
-          _buildConfirmPasswordField(),
-          const SizedBox(height: 40),
-          _buildLargeButton(
-            label: "Next Step",
-            onPressed: _nextStep,
-            isLoading: _isStepLoading,
-          ),
-          const SizedBox(height: 20),
-          Center(
-            child: TextButton(
-              onPressed: () {
-                Navigator.of(
-                  context,
-                ).push(MaterialPageRoute(builder: (_) => const LoginScreen()));
-              },
-              child: const Text("Already have an account? Login"),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // --- STEP 2: PERSONAL INFO ---
-  Widget _buildStep2Personal() {
+  // --- STEP 1: PERSONAL INFO ---
+  Widget _buildStep1Personal() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -505,13 +426,17 @@ class _SignupScreenState extends State<SignupScreen>
           ),
           const SizedBox(height: 6),
           const Text(
-            'Tell us your name and a bit about yourself.',
+            'Start with your personal details before setting up your login.',
             style: TextStyle(fontSize: 16, color: Colors.black54),
           ),
           const SizedBox(height: 32),
+          _buildNicknameField(),
+          const SizedBox(height: 24),
           _buildNameField(),
           const SizedBox(height: 24),
           _buildSurnameField(),
+          const SizedBox(height: 24),
+          _buildDobField(),
           const SizedBox(height: 24),
           const Text(
             'Gender',
@@ -533,8 +458,105 @@ class _SignupScreenState extends State<SignupScreen>
     );
   }
 
-  // --- STEP 3: ACADEMIC PROFILE ---
-  Widget _buildStep3Academic() {
+  // --- STEP 3: SECURITY ---
+  Widget _buildStep3Security() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (_stepError != null) _buildStepErrorBanner(_stepError!),
+          const Text(
+            'Secure your account',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF0D47A1),
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Add your student email and password so you can access OG Vibes safely.',
+            style: TextStyle(fontSize: 16, color: Colors.black54),
+          ),
+          const SizedBox(height: 32),
+          _buildEmailField(),
+          const SizedBox(height: 24),
+          _buildPasswordField(),
+          const SizedBox(height: 24),
+          _buildConfirmPasswordField(),
+          const SizedBox(height: 24),
+          GestureDetector(
+            onTap: () => setState(() => _agreedToCode = !_agreedToCode),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Checkbox(
+                  value: _agreedToCode,
+                  activeColor: const Color(0xFF2962FF),
+                  onChanged: (v) => setState(() => _agreedToCode = v ?? false),
+                ),
+                Expanded(
+                  child: Text.rich(
+                    TextSpan(
+                      text: 'I agree to the ',
+                      style: const TextStyle(fontSize: 13),
+                      children: [
+                        WidgetSpan(
+                          child: GestureDetector(
+                            onTap: () => _showTermsPrivacyDialog('Terms'),
+                            child: const Text(
+                              'Terms',
+                              style: TextStyle(
+                                color: Color(0xFF2962FF),
+                                fontWeight: FontWeight.bold,
+                                decoration: TextDecoration.underline,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const TextSpan(text: ' and '),
+                        WidgetSpan(
+                          child: GestureDetector(
+                            onTap: () => _showTermsPrivacyDialog('Privacy'),
+                            child: const Text(
+                              'Privacy Policy',
+                              style: TextStyle(
+                                color: Color(0xFF2962FF),
+                                fontWeight: FontWeight.bold,
+                                decoration: TextDecoration.underline,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          _buildLargeButton(
+            label: 'Create Account',
+            onPressed: _agreedToCode && !_isLoading ? _handleSignup : null,
+            isLoading: _isLoading,
+            isPrimary: true,
+          ),
+          const SizedBox(height: 20),
+          Center(
+            child: TextButton(
+              onPressed: _prevStep,
+              child: const Text('Back to edit'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- STEP 2: ACADEMIC PROFILE ---
+  Widget _buildStep2Academic() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -552,11 +574,13 @@ class _SignupScreenState extends State<SignupScreen>
           const SizedBox(height: 6),
           const Text(
             'Tell us where and what you study so we can personalize your feed.',
-            style: TextStyle(fontSize: 12, color: Colors.black54),
+            style: TextStyle(fontSize: 16, color: Colors.black54),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 32),
+          _buildStudentNumberField(),
+          const SizedBox(height: 24),
           Text(
-            "Select your Campus",
+            'Campus',
             style: TextStyle(
               color: Colors.grey[700],
               fontWeight: FontWeight.w600,
@@ -577,10 +601,7 @@ class _SignupScreenState extends State<SignupScreen>
               ),
             ),
           ],
-
           const SizedBox(height: 24),
-
-          // Toggle Nated/NCV
           Container(
             padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
@@ -590,7 +611,7 @@ class _SignupScreenState extends State<SignupScreen>
             child: Row(
               children: [
                 _buildTypeToggle(
-                  "Nated Report 191",
+                  'Nated Report 191',
                   _isNated,
                   () => setState(() {
                     _isNated = true;
@@ -598,7 +619,7 @@ class _SignupScreenState extends State<SignupScreen>
                   }),
                 ),
                 _buildTypeToggle(
-                  "NC(V)",
+                  'NC(V)',
                   !_isNated,
                   () => setState(() {
                     _isNated = false;
@@ -608,20 +629,16 @@ class _SignupScreenState extends State<SignupScreen>
               ],
             ),
           ),
-
           const SizedBox(height: 24),
-
-          // Department & Level Row
           Row(
             children: [
               Expanded(
                 flex: 2,
                 child: _buildDropdown(
                   value: _selectedDepartment,
-                  label: 'Department',
+                  label: 'Course / Department',
                   items: _departmentOptions,
-                  onChanged: (val) =>
-                      setState(() => _selectedDepartment = val!),
+                  onChanged: (val) => setState(() => _selectedDepartment = val!),
                 ),
               ),
               const SizedBox(width: 12),
@@ -636,75 +653,12 @@ class _SignupScreenState extends State<SignupScreen>
               ),
             ],
           ),
-
-          const SizedBox(height: 24),
-
-          // Agreement
-          const Text(
-            'By continuing, you agree to our Terms and Privacy Policy. We only '
-            'collect what we need to run the student platform.',
-            style: TextStyle(fontSize: 12, color: Colors.black54),
-          ),
-          const SizedBox(height: 8),
-          GestureDetector(
-            onTap: () => setState(() => _agreedToCode = !_agreedToCode),
-            child: Row(
-              children: [
-                Checkbox(
-                  value: _agreedToCode,
-                  activeColor: const Color(0xFF2962FF),
-                  onChanged: (v) => setState(() => _agreedToCode = v!),
-                ),
-                Expanded(
-                  child: Text.rich(
-                    TextSpan(
-                      text: "I agree to the ",
-                      style: const TextStyle(fontSize: 13),
-                      children: [
-                        WidgetSpan(
-                          child: GestureDetector(
-                            onTap: () => _showTermsPrivacyDialog('Terms'),
-                            child: const Text(
-                              "Terms",
-                              style: TextStyle(
-                                color: Color(0xFF2962FF),
-                                fontWeight: FontWeight.bold,
-                                decoration: TextDecoration.underline,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const TextSpan(text: " and "),
-                        WidgetSpan(
-                          child: GestureDetector(
-                            onTap: () => _showTermsPrivacyDialog('Privacy'),
-                            child: const Text(
-                              "Privacy Policy",
-                              style: TextStyle(
-                                color: Color(0xFF2962FF),
-                                fontWeight: FontWeight.bold,
-                                decoration: TextDecoration.underline,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
+          const SizedBox(height: 32),
           _buildLargeButton(
-            label: "Review Details",
-            onPressed: _agreedToCode && !_isLoading ? _nextStep : null,
-            isLoading: _isLoading,
-            isPrimary: true,
+            label: 'Next Step',
+            onPressed: _nextStep,
+            isLoading: _isStepLoading,
           ),
-          const SizedBox(height: 40),
         ],
       ),
     );
@@ -859,6 +813,84 @@ class _SignupScreenState extends State<SignupScreen>
           ),
         ],
       ],
+    );
+  }
+
+  Widget _buildNicknameField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ShakeWidget(
+          controller: _nameShakeController,
+          child: TextField(
+            controller: _nicknameController,
+            textCapitalization: TextCapitalization.words,
+            inputFormatters: [_CapitalizeWordsFormatter()],
+            decoration: _modernDecoration('Nickname', Icons.emoji_people_outlined),
+          ),
+        ),
+        if (_nicknameError != null) ...[
+          const SizedBox(height: 6),
+          Text(
+            _nicknameError!,
+            style: const TextStyle(
+              color: Colors.redAccent,
+              fontWeight: FontWeight.w600,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildDobField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        GestureDetector(
+          onTap: () async {
+            final date = await showDatePicker(
+              context: context,
+              initialDate: _dateOfBirth ?? DateTime.now().subtract(const Duration(days: 3650)),
+              firstDate: DateTime(1900),
+              lastDate: DateTime.now(),
+            );
+            if (date != null) {
+              setState(() => _dateOfBirth = date);
+            }
+          },
+          child: AbsorbPointer(
+            child: TextField(
+              decoration: _modernDecoration(
+                _dateOfBirth == null
+                    ? 'Date of Birth'
+                    : '${_dateOfBirth!.day}/${_dateOfBirth!.month}/${_dateOfBirth!.year}',
+                Icons.calendar_today_outlined,
+              ),
+            ),
+          ),
+        ),
+        if (_dobError != null) ...[
+          const SizedBox(height: 6),
+          Text(
+            _dobError!,
+            style: const TextStyle(
+              color: Colors.redAccent,
+              fontWeight: FontWeight.w600,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildStudentNumberField() {
+    return TextField(
+      controller: _studentNumberController,
+      keyboardType: TextInputType.text,
+      decoration: _modernDecoration('Student Number (optional)', Icons.badge_outlined),
     );
   }
 
@@ -1151,13 +1183,7 @@ class _SignupScreenState extends State<SignupScreen>
   }
 
   Future<void> _handleSignup() async {
-    if (_selectedCampus.isEmpty) {
-      _campusShakeController.shake();
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Please select a campus')));
-      return;
-    }
+    if (!_validateSecurityStep()) return;
 
     setState(() => _isLoading = true);
     _openMintingDialog();
@@ -1175,10 +1201,10 @@ class _SignupScreenState extends State<SignupScreen>
         level: _selectedLevel,
         studentType: _isNated ? 'Nated' : 'NCV',
         gender: _selectedGender,
+        studentNumber: _studentNumberController.text.trim(),
         timeZoneName: _timeZoneName,
         timeZoneOffset: _timeZoneOffset,
         deviceLocale: _deviceLocale,
-        phone: _phoneController.text.trim(),
       );
 
       _updateMintingStatus('Sending email verification...');
@@ -1238,18 +1264,33 @@ class _SignupScreenState extends State<SignupScreen>
     }
   }
 
-  Widget _buildPhoneField() {
-    // Only show phone input, no verification
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        TextField(
-          controller: _phoneController,
-          keyboardType: TextInputType.phone,
-          decoration: _modernDecoration('Phone Number', Icons.phone),
-        ),
-      ],
-    );
+  bool _validateSecurityStep() {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+    final confirmPassword = _confirmPasswordController.text.trim();
+    final emailValid = email.isNotEmpty && _emailRegex.hasMatch(email);
+    final passValid = password.isNotEmpty && password.length >= 6;
+    final confirmValid = confirmPassword.isNotEmpty && confirmPassword == password;
+    final termsValid = _agreedToCode;
+
+    setState(() {
+      _passwordError = passValid ? null : 'Use at least 6 characters for your password.';
+      _confirmPasswordError = confirmValid ? null : 'Passwords do not match. Please re-type.';
+      _stepError = null;
+    });
+
+    if (!emailValid || !passValid || !confirmValid || !termsValid) {
+      setState(() {
+        _stepError = termsValid
+            ? 'Please fill all required security fields correctly.'
+            : 'Please accept the Terms and Privacy Policy.';
+      });
+      if (!emailValid) _emailShakeController.shake();
+      if (!passValid) _passwordShakeController.shake();
+      if (!confirmValid) _confirmPasswordShakeController.shake();
+      return false;
+    }
+    return true;
   }
 
   // --- Dialogs & Utilities (Kept from original but cleaned up) ---

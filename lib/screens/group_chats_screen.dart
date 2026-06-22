@@ -1,5 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:og_vibes_student/widgets/vibe_scaffold.dart';
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:share_plus/share_plus.dart';
 
 class GroupChatsScreen extends StatefulWidget {
   const GroupChatsScreen({super.key});
@@ -12,6 +18,7 @@ class _GroupChatsScreenState extends State<GroupChatsScreen> {
   late List<_GroupChat> _groups;
   final TextEditingController _messageController = TextEditingController();
   _GroupChat? _selectedGroup;
+  final ImagePicker _imagePicker = ImagePicker();
 
   @override
   void initState() {
@@ -25,16 +32,47 @@ class _GroupChatsScreenState extends State<GroupChatsScreen> {
         memberCount: 34,
         messages: [
           _Message(
-            sender: 'Dr. Smith',
-            content: 'Welcome everyone! This is your main group for Mathematics N4.',
-            timestamp: DateTime.now().subtract(const Duration(hours: 2)),
-            isFromLecturer: true,
-          ),
           _Message(
+            sender: 'You',
+            content: _messageController.text.trim(),
+            timestamp: DateTime.now(),
+            isFromLecturer: false,
+          ),
             sender: 'John Doe',
             content: 'Thanks for creating this group!',
             timestamp: DateTime.now().subtract(const Duration(hours: 1)),
             isFromLecturer: false,
+
+    Future<void> _pickImage() async {
+      if (_selectedGroup == null) return;
+      final picked = await _imagePicker.pickImage(source: ImageSource.gallery, maxWidth: 1600);
+      if (picked == null) return;
+      setState(() {
+        _selectedGroup!.messages.add(_Message(
+          sender: 'You',
+          content: '',
+          timestamp: DateTime.now(),
+          isFromLecturer: false,
+          attachment: _Attachment(path: picked.path, name: picked.name, isImage: true),
+        ));
+      });
+    }
+
+    Future<void> _pickFile() async {
+      if (_selectedGroup == null) return;
+      final result = await FilePicker.platform.pickFiles(allowMultiple: false);
+      if (result == null || result.files.isEmpty) return;
+      final file = result.files.first;
+      setState(() {
+        _selectedGroup!.messages.add(_Message(
+          sender: 'You',
+          content: file.name,
+          timestamp: DateTime.now(),
+          isFromLecturer: false,
+          attachment: _Attachment(path: file.path, name: file.name, isImage: file.extension != null && ['png','jpg','jpeg','gif','webp'].contains(file.extension!.toLowerCase())),
+        ));
+      });
+    }
           ),
         ],
       ),
@@ -232,6 +270,16 @@ class _GroupChatsScreenState extends State<GroupChatsScreen> {
                 children: [
                   CircleAvatar(
                     backgroundColor: Theme.of(context).primaryColor,
+                IconButton(
+                  tooltip: 'Image',
+                  onPressed: _pickImage,
+                  icon: const Icon(Icons.photo),
+                ),
+                IconButton(
+                  tooltip: 'File',
+                  onPressed: _pickFile,
+                  icon: const Icon(Icons.attach_file),
+                ),
                     child: Text(
                       _selectedGroup!.name[0],
                       style: const TextStyle(color: Colors.white),
@@ -357,27 +405,78 @@ class _GroupChatsScreenState extends State<GroupChatsScreen> {
                       ),
                     ),
                   ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isYourMessage
-                        ? Theme.of(context).primaryColor
-                        : Colors.grey[200],
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  constraints: BoxConstraints(
-                    maxWidth: MediaQuery.of(context).size.width * 0.6,
-                  ),
-                  child: Text(
-                    message.content,
-                    style: TextStyle(
-                      color: isYourMessage ? Colors.white : Colors.black,
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isYourMessage
+                          ? Theme.of(context).primaryColor
+                          : Colors.grey[200],
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    constraints: BoxConstraints(
+                      maxWidth: MediaQuery.of(context).size.width * 0.6,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (message.attachment != null) ...[
+                          if (message.attachment!.isImage && message.attachment!.path != null && !kIsWeb)
+                            GestureDetector(
+                              onTap: () => showDialog<void>(
+                                context: context,
+                                builder: (_) => Dialog(
+                                  child: Image.file(File(message.attachment!.path!)),
+                                ),
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child: Image.file(
+                                  File(message.attachment!.path!),
+                                  width: 160,
+                                  height: 110,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            )
+                          else
+                            Row(
+                              children: [
+                                const Icon(Icons.insert_drive_file, size: 28),
+                                const SizedBox(width: 8),
+                                Expanded(child: Text(message.attachment!.name, style: TextStyle(color: isYourMessage ? Colors.white : Colors.black))),
+                                IconButton(
+                                  icon: const Icon(Icons.download_rounded),
+                                  color: isYourMessage ? Colors.white : Colors.black54,
+                                  onPressed: () async {
+                                    final path = message.attachment!.path;
+                                    if (path != null && path.isNotEmpty && File(path).existsSync()) {
+                                      try {
+                                        await Share.shareFiles([path], text: message.attachment!.name);
+                                      } catch (_) {
+                                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Unable to share file')));
+                                      }
+                                    } else {
+                                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('File not available')));
+                                    }
+                                  },
+                                )
+                              ],
+                            ),
+                          const SizedBox(height: 8),
+                        ],
+                        if (message.content.isNotEmpty)
+                          Text(
+                            message.content,
+                            style: TextStyle(
+                              color: isYourMessage ? Colors.white : Colors.black,
+                            ),
+                          ),
+                      ],
                     ),
                   ),
-                ),
               ],
             ),
             const SizedBox(height: 4),
@@ -447,7 +546,7 @@ class _GroupChatsScreenState extends State<GroupChatsScreen> {
                   SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Only lecturers can create and manage groups. You can chat and participate.',
+                      'Anyone (students or lecturers) can create and manage groups here. Be respectful and follow class rules.',
                       style: TextStyle(fontSize: 12),
                     ),
                   ),
@@ -460,6 +559,48 @@ class _GroupChatsScreenState extends State<GroupChatsScreen> {
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showCreateGroup() {
+    final nameCtrl = TextEditingController();
+    final descCtrl = TextEditingController();
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Create Group'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Group name')),
+            const SizedBox(height: 8),
+            TextField(controller: descCtrl, decoration: const InputDecoration(labelText: 'Description')),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () {
+              final name = nameCtrl.text.trim();
+              if (name.isEmpty) return;
+              final group = _GroupChat(
+                id: DateTime.now().millisecondsSinceEpoch.toString(),
+                name: name,
+                lecturer: 'You',
+                description: descCtrl.text.trim(),
+                memberCount: 1,
+                messages: [],
+              );
+              setState(() {
+                _groups.insert(0, group);
+                _selectedGroup = group;
+              });
+              Navigator.pop(context);
+            },
+            child: const Text('Create'),
           ),
         ],
       ),
@@ -490,11 +631,21 @@ class _Message {
   final String content;
   final DateTime timestamp;
   final bool isFromLecturer;
+  final _Attachment? attachment;
 
   _Message({
     required this.sender,
     required this.content,
     required this.timestamp,
     required this.isFromLecturer,
+    this.attachment,
   });
+}
+
+class _Attachment {
+  final String? path; // local path
+  final String name;
+  final bool isImage;
+
+  _Attachment({this.path, required this.name, this.isImage = false});
 }
