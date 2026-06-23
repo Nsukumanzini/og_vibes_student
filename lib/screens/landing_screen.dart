@@ -3,7 +3,6 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:og_vibes_student/screens/home_screen.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../services/auth_service.dart';
@@ -270,19 +269,22 @@ class _LandingScreenState extends State<LandingScreen>
           width: double.infinity,
           child: OutlinedButton.icon(
             onPressed: () async {
-              if (!mounted) return;
-              try {
-                final authService = AuthService();
-                await authService.signInAnonymously();
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(builder: (_) => const HomeScreen()),
-                );
-              } catch (_) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Guest login is not available with Supabase.')),
-                );
-              }
-            },
+                  final navigator = Navigator.of(context);
+                  final messenger = ScaffoldMessenger.of(context);
+                  try {
+                    final authService = AuthService();
+                    await authService.signInAnonymously();
+                    if (!mounted) return;
+                    navigator.pushReplacement(
+                      MaterialPageRoute(builder: (_) => const HomeScreen()),
+                    );
+                  } catch (_) {
+                    if (!mounted) return;
+                    messenger.showSnackBar(
+                      const SnackBar(content: Text('Guest login is not available with Supabase.')),
+                    );
+                  }
+                },
             icon: const Icon(Icons.person_outline),
             label: const Text('Continue as Guest'),
             style: OutlinedButton.styleFrom(

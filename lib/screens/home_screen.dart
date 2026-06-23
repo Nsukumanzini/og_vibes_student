@@ -66,27 +66,26 @@ class _HomeScreenState extends State<HomeScreen> {
       });
     }
 
-    final response = await Supabase.instance.client
-        .from('posts')
-        .select('*, profiles(name, surname, photo_url, campus, department)')
-        .eq('is_deleted', false)
-        .order('created_at', ascending: false)
-        .limit(_postLimit)
-        .execute();
+    try {
+      final data = await Supabase.instance.client
+          .from('posts')
+          .select('*, profiles(name, surname, photo_url, campus, department)')
+          .eq('is_deleted', false)
+          .order('created_at', ascending: false)
+          .limit(_postLimit);
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    if (response.error != null) {
+      setState(() {
+        _posts = List<Map<String, dynamic>>.from(data as List<dynamic>? ?? []);
+        _isLoadingPosts = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
       setState(() {
         _isLoadingPosts = false;
       });
-      return;
     }
-
-    setState(() {
-      _posts = List<Map<String, dynamic>>.from(response.data as List<dynamic>? ?? []);
-      _isLoadingPosts = false;
-    });
   }
 
   @override

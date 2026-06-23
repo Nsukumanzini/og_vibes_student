@@ -1359,15 +1359,18 @@ class _SignupScreenState extends State<SignupScreen>
     if (_selectedImageBytes == null || user == null) return;
     try {
       setState(() {});
-      await Supabase.instance.client.storage.from('profile_images').uploadBytes(
-        '${user.id}.jpg',
-        _selectedImageBytes!,
-      );
-      final publicUrlResponse = Supabase.instance.client.storage.from('profile_images').getPublicUrl('${user.id}.jpg');
-      final photoUrl = publicUrlResponse.publicUrl;
-      await Supabase.instance.client.from('public.profiles').update(
-        {'photoUrl': photoUrl},
-      ).eq('id', user.id);
+      await Supabase.instance.client.storage
+          .from('profile_images')
+          .uploadBinary('${user.id}.jpg', _selectedImageBytes!);
+
+      final signedUrl = await Supabase.instance.client.storage
+          .from('profile_images')
+          .createSignedUrl('${user.id}.jpg', 60 * 60 * 24 * 365);
+
+      await Supabase.instance.client
+          .from('public.profiles')
+          .update({'photoUrl': signedUrl}).eq('id', user.id);
+
       if (mounted) {
         setState(() {});
       }

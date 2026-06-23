@@ -32,47 +32,10 @@ class _GroupChatsScreenState extends State<GroupChatsScreen> {
         memberCount: 34,
         messages: [
           _Message(
-          _Message(
-            sender: 'You',
-            content: _messageController.text.trim(),
-            timestamp: DateTime.now(),
-            isFromLecturer: false,
-          ),
             sender: 'John Doe',
             content: 'Thanks for creating this group!',
             timestamp: DateTime.now().subtract(const Duration(hours: 1)),
             isFromLecturer: false,
-
-    Future<void> _pickImage() async {
-      if (_selectedGroup == null) return;
-      final picked = await _imagePicker.pickImage(source: ImageSource.gallery, maxWidth: 1600);
-      if (picked == null) return;
-      setState(() {
-        _selectedGroup!.messages.add(_Message(
-          sender: 'You',
-          content: '',
-          timestamp: DateTime.now(),
-          isFromLecturer: false,
-          attachment: _Attachment(path: picked.path, name: picked.name, isImage: true),
-        ));
-      });
-    }
-
-    Future<void> _pickFile() async {
-      if (_selectedGroup == null) return;
-      final result = await FilePicker.platform.pickFiles(allowMultiple: false);
-      if (result == null || result.files.isEmpty) return;
-      final file = result.files.first;
-      setState(() {
-        _selectedGroup!.messages.add(_Message(
-          sender: 'You',
-          content: file.name,
-          timestamp: DateTime.now(),
-          isFromLecturer: false,
-          attachment: _Attachment(path: file.path, name: file.name, isImage: file.extension != null && ['png','jpg','jpeg','gif','webp'].contains(file.extension!.toLowerCase())),
-        ));
-      });
-    }
           ),
         ],
       ),
@@ -117,6 +80,37 @@ class _GroupChatsScreenState extends State<GroupChatsScreen> {
 
   void _selectGroup(_GroupChat group) {
     setState(() => _selectedGroup = group);
+  }
+
+  Future<void> _pickImage() async {
+    if (_selectedGroup == null) return;
+    final picked = await _imagePicker.pickImage(source: ImageSource.gallery, maxWidth: 1600);
+    if (picked == null) return;
+    setState(() {
+      _selectedGroup!.messages.add(_Message(
+        sender: 'You',
+        content: '',
+        timestamp: DateTime.now(),
+        isFromLecturer: false,
+        attachment: _Attachment(path: picked.path, name: picked.name, isImage: true),
+      ));
+    });
+  }
+
+  Future<void> _pickFile() async {
+    if (_selectedGroup == null) return;
+    final result = await FilePicker.platform.pickFiles(allowMultiple: false);
+    if (result == null || result.files.isEmpty) return;
+    final file = result.files.first;
+    setState(() {
+      _selectedGroup!.messages.add(_Message(
+        sender: 'You',
+        content: file.name,
+        timestamp: DateTime.now(),
+        isFromLecturer: false,
+        attachment: _Attachment(path: file.path, name: file.name, isImage: file.extension != null && ['png','jpg','jpeg','gif','webp'].contains(file.extension!.toLowerCase())),
+      ));
+    });
   }
 
   void _sendMessage() {
@@ -270,16 +264,6 @@ class _GroupChatsScreenState extends State<GroupChatsScreen> {
                 children: [
                   CircleAvatar(
                     backgroundColor: Theme.of(context).primaryColor,
-                IconButton(
-                  tooltip: 'Image',
-                  onPressed: _pickImage,
-                  icon: const Icon(Icons.photo),
-                ),
-                IconButton(
-                  tooltip: 'File',
-                  onPressed: _pickFile,
-                  icon: const Icon(Icons.attach_file),
-                ),
                     child: Text(
                       _selectedGroup!.name[0],
                       style: const TextStyle(color: Colors.white),
@@ -307,6 +291,16 @@ class _GroupChatsScreenState extends State<GroupChatsScreen> {
                         ),
                       ],
                     ),
+                  ),
+                  IconButton(
+                    tooltip: 'Image',
+                    onPressed: _pickImage,
+                    icon: const Icon(Icons.photo),
+                  ),
+                  IconButton(
+                    tooltip: 'File',
+                    onPressed: _pickFile,
+                    icon: const Icon(Icons.attach_file),
                   ),
                   IconButton(
                     onPressed: () {
@@ -454,11 +448,13 @@ class _GroupChatsScreenState extends State<GroupChatsScreen> {
                                     final path = message.attachment!.path;
                                     if (path != null && path.isNotEmpty && File(path).existsSync()) {
                                       try {
-                                        await Share.shareFiles([path], text: message.attachment!.name);
+                                        await Share.shareXFiles([XFile(path)], text: message.attachment!.name);
                                       } catch (_) {
+                                        if (!mounted) return;
                                         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Unable to share file')));
                                       }
                                     } else {
+                                      if (!mounted) return;
                                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('File not available')));
                                     }
                                   },

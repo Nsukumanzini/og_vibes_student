@@ -3,7 +3,7 @@ import 'package:og_vibes_student/widgets/vibe_scaffold.dart';
 
 export 'events_screen.dart';
 export 'lift_club_screen.dart';
-export 'lost_found_screen.dart';
+export 'lost_and_found_screen.dart';
 export 'rewards_screen.dart';
 export 'miss_mr_vibes_screen.dart';
 export 'src_voting_screen.dart';

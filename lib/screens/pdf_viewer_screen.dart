@@ -14,8 +14,10 @@ class PdfViewerScreen extends StatelessWidget {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Invalid URL')));
       return;
     }
-    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not open URL')));
+    final messenger = ScaffoldMessenger.of(context);
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!launched) {
+      messenger.showSnackBar(const SnackBar(content: Text('Could not open URL')));
     }
   }
 

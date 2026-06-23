@@ -93,6 +93,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return VibeScaffold(
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
@@ -156,15 +157,15 @@ class _MessagesScreenState extends State<MessagesScreen> {
                     children: [
                       Text(
                         'Chats',
-                        style: Theme.of(context).textTheme.headline5?.copyWith(
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
                             ),
                       ),
                       const SizedBox(height: 6),
-                      const Text(
+                      Text(
                         'Stay connected with study buddies',
-                        style: TextStyle(
+                        style: theme.textTheme.bodyMedium?.copyWith(
                           color: Colors.white70,
                           fontSize: 15,
                           height: 1.35,
@@ -205,9 +206,8 @@ class _MessagesScreenState extends State<MessagesScreen> {
                               _searchQuery.isEmpty
                                   ? 'No chats yet. Start a conversation with a friend.'
                                   : 'No matches for "$_searchQuery".',
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                color: Color(0xFF607D8B),
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: Colors.black54,
                                 fontSize: 15,
                               ),
                             ),

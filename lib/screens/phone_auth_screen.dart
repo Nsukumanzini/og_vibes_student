@@ -24,21 +24,24 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
   Future<void> _verifyPhone() async {
     setState(() => _isLoading = true);
     try {
+      final messenger = ScaffoldMessenger.of(context);
       await Supabase.instance.client.auth.signInWithOtp(
         phone: _phoneController.text.trim(),
       );
+      if (!mounted) return;
       setState(() {
         _verificationId = 'sent';
       });
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         const SnackBar(content: Text('Verification code sent. Check your phone.')),
       );
     } catch (error) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Verification failed: $error')),
       );
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 

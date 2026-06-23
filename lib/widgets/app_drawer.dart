@@ -38,28 +38,27 @@ class _AppDrawerState extends State<AppDrawer> {
     }
 
     try {
-      final response = await Supabase.instance.client
+      final data = await Supabase.instance.client
           .from('profiles')
           .select('name, campus, department, photo_url')
           .eq('id', user.id)
-          .single()
-          .execute();
-      final data = response.data as Map<String, dynamic>?;
+          .single();
       if (!mounted) return;
+      final map = data as Map<String, dynamic>?;
       setState(() {
-        _userName = (data?['name'] as String?)?.trim().isNotEmpty == true
-            ? data!['name'] as String
+        _userName = (map?['name'] as String?)?.trim().isNotEmpty == true
+            ? map!['name'] as String
             : (user.email?.split('@').first ?? 'OG Vibester');
-        _userCampus = (data?['campus'] as String?)?.trim().isNotEmpty == true
-            ? data!['campus'] as String
+        _userCampus = (map?['campus'] as String?)?.trim().isNotEmpty == true
+            ? map!['campus'] as String
             : 'Campus Unknown';
-        final department = (data?['department'] as String?)?.trim();
+        final department = (map?['department'] as String?)?.trim();
         _userCourse = (department?.isNotEmpty == true)
             ? department!
             : 'General Studies';
-        _photoUrl = (data?['photo_url'] as String?)?.trim().isNotEmpty == true
-            ? data!['photo_url'] as String
-            : user.userMetadata['avatar_url'] as String?;
+        _photoUrl = (map?['photo_url'] as String?)?.trim().isNotEmpty == true
+          ? map!['photo_url'] as String
+          : user.userMetadata?['avatar_url'] as String?;
       });
     } catch (_) {
       if (!mounted) return;
@@ -67,7 +66,7 @@ class _AppDrawerState extends State<AppDrawer> {
         _userName = user.email?.split('@').first ?? 'OG Vibester';
         _userCampus = 'Campus Unknown';
         _userCourse = 'General Studies';
-        _photoUrl = user.userMetadata['avatar_url'] as String?;
+        _photoUrl = user.userMetadata?['avatar_url'] as String?;
       });
     }
   }
@@ -343,7 +342,7 @@ class _AppDrawerState extends State<AppDrawer> {
     final navigator = Navigator.of(context);
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await _auth.signOut();
+      await Supabase.instance.client.auth.signOut();
       if (!mounted) return;
       navigator.pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const LoginScreen()),

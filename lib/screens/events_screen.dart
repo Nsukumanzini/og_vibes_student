@@ -6,21 +6,27 @@ import 'package:url_launcher/url_launcher.dart';
 class EventsScreen extends StatelessWidget {
   const EventsScreen({super.key});
 
+  Future<List<Map<String, dynamic>>> _fetchEvents() async {
+    final response = await Supabase.instance.client
+        .from('events')
+        .select()
+        .order('date', ascending: true);
+
+    final raw = response as List<dynamic>? ?? [];
+    return raw.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     return VibeScaffold(
       appBar: AppBar(title: const Text('Events & Parties')),
-      body: StreamBuilder<PostgrestResponse>(
-        stream: Supabase.instance.client
-            .from('events')
-            .stream(primaryKey: ['id'])
-            .order('date', ascending: true),
+      body: FutureBuilder<List<Map<String, dynamic>>>(
+        future: _fetchEvents(),
         builder: (context, snapshot) {
-          if (snapshot.hasError || snapshot.data?.error != null) {
-            final error = snapshot.data?.error?.message ?? snapshot.error;
-            return Center(child: Text('Error: $error'));
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
           }
-          final events = snapshot.data?.data as List<dynamic>? ?? [];
+          final events = snapshot.data ?? [];
           if (events.isEmpty) {
             return const Center(
               child: Padding(
@@ -37,7 +43,7 @@ class EventsScreen extends StatelessWidget {
             itemCount: events.length,
             separatorBuilder: (_, _) => const SizedBox(height: 16),
             itemBuilder: (context, index) {
-              final data = Map<String, dynamic>.from(events[index] as Map);
+              final data = events[index];
               final title = (data['title'] as String?) ?? 'Campus Event';
               final date = (data['dateLabel'] as String?) ?? 'Date TBA';
               final venue = (data['venue'] as String?) ?? 'Venue TBA';

@@ -95,7 +95,7 @@ class _SlidesScreenState extends State<SlidesScreen> {
         Expanded(
           child: ListView.separated(
             itemCount: subjects.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 10),
+            separatorBuilder: (_, _) => const SizedBox(height: 10),
             itemBuilder: (context, index) {
               final subj = subjects[index];
               return Card(
@@ -122,13 +122,13 @@ class _SlidesScreenState extends State<SlidesScreen> {
         Expanded(
           child: ListView.separated(
             itemCount: slides.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 10),
+            separatorBuilder: (_, _) => const SizedBox(height: 10),
             itemBuilder: (context, index) {
               final slide = slides[index];
               return Card(
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 child: ListTile(
-                  leading: const CircleAvatar(child: Icon(Icons.slideshow, color: Colors.white), backgroundColor: Color(0xFF6C63FF)),
+                  leading: const CircleAvatar(backgroundColor: Color(0xFF6C63FF), child: Icon(Icons.slideshow, color: Colors.white)),
                   title: Text(slide['title'] ?? ''),
                   subtitle: Text('Summary / slides document'),
                   trailing: Row(
@@ -159,8 +159,10 @@ class _SlidesScreenState extends State<SlidesScreen> {
                             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Invalid URL')));
                             return;
                           }
-                          if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not open URL')));
+                          final messenger = ScaffoldMessenger.of(context);
+                          final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+                          if (!launched) {
+                            messenger.showSnackBar(const SnackBar(content: Text('Could not open URL')));
                           }
                         },
                         icon: const Icon(Icons.download),

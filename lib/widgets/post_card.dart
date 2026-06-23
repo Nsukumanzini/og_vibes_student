@@ -416,7 +416,9 @@ class _PostCardState extends State<PostCard> {
         Row(
           children: [
             _ActionButton(
-              icon: hasLiked ? Icons.favorite : Icons.favorite_border,
+              icon: _likesLoading
+                  ? Icons.hourglass_empty
+                  : (hasLiked ? Icons.favorite : Icons.favorite_border),
               label: likeLabel,
               highlighted: hasLiked,
               onTap: () => _togglePostLike(postId),
@@ -459,13 +461,12 @@ class _PostCardState extends State<PostCard> {
         await Supabase.instance.client
             .from('post_likes')
             .delete()
-            .eq('post_id', postId)
-            .eq('user_id', userId)
-            .execute();
+              .eq('post_id', postId)
+              .eq('user_id', userId);
       } else {
-        await Supabase.instance.client
-            .from('post_likes')
-            .insert({'post_id': postId, 'user_id': userId}).execute();
+            await Supabase.instance.client
+              .from('post_likes')
+              .insert({'post_id': postId, 'user_id': userId});
       }
 
       if (!mounted) return;
@@ -494,11 +495,10 @@ class _PostCardState extends State<PostCard> {
       _likesLoading = true;
     });
 
-    final response = await Supabase.instance.client
-        .from('post_likes')
-        .select('user_id')
-        .eq('post_id', postId)
-        .execute();
+    final res = await Supabase.instance.client
+      .from('post_likes')
+      .select('user_id')
+      .eq('post_id', postId);
 
     if (!mounted) return;
 
@@ -506,15 +506,24 @@ class _PostCardState extends State<PostCard> {
       _likesLoading = false;
     });
 
-    if (response.error != null) {
-      return;
+    // Handle multiple shapes returned by different Supabase client versions
+    final dynamicDyn = res as dynamic;
+    try {
+      final err = dynamicDyn.error;
+      if (err != null) return;
+    } catch (_) {}
+
+    List<dynamic> rows = [];
+    if (dynamicDyn is List) {
+      rows = dynamicDyn;
+    } else if (dynamicDyn is Map && dynamicDyn['data'] is List) {
+      rows = dynamicDyn['data'] as List<dynamic>;
     }
 
-    final likedUsers = (response.data as List<dynamic>?)
-            ?.map((item) => item['user_id']?.toString())
+    final likedUsers = rows
+            .map((item) => item['user_id']?.toString())
             .whereType<String>()
-            .toList() ??
-        [];
+            .toList();
 
     final currentUserId = Supabase.instance.client.auth.currentUser?.id;
     setState(() {
@@ -630,6 +639,44 @@ class _PostCardState extends State<PostCard> {
     if (lower.contains('tourism')) return '🧭';
     if (lower.contains('hospitality')) return '🍽️';
     return '🎓';
+  }
+
+  String? _extractAuthorName(Map<String, dynamic> data) {
+    final profiles = data['profiles'];
+    if (profiles is Map) {
+      final name = (profiles['name'] as String?)?.trim();
+      final surname = (profiles['surname'] as String?)?.trim();
+      final full = [if (name != null && name.isNotEmpty) name, if (surname != null && surname.isNotEmpty) surname].join(' ');
+      if (full.isNotEmpty) return full;
+    }
+    return (data['author_name'] as String?)?.trim() ?? (data['author'] as String?)?.trim();
+  }
+
+  String? _extractAuthorPhoto(Map<String, dynamic> data) {
+    final profiles = data['profiles'];
+    if (profiles is Map) {
+      final photo = (profiles['photo_url'] as String?)?.trim();
+      if (photo != null && photo.isNotEmpty) return photo;
+    }
+    return (data['author_photo'] as String?)?.trim() ?? (data['avatarUrl'] as String?)?.trim();
+  }
+
+  String? _extractAuthorCampus(Map<String, dynamic> data) {
+    final profiles = data['profiles'];
+    if (profiles is Map) {
+      final campus = (profiles['campus'] as String?)?.trim();
+      if (campus != null && campus.isNotEmpty) return campus;
+    }
+    return (data['campus'] as String?)?.trim();
+  }
+
+  String? _extractAuthorDepartment(Map<String, dynamic> data) {
+    final profiles = data['profiles'];
+    if (profiles is Map) {
+      final dept = (profiles['department'] as String?)?.trim();
+      if (dept != null && dept.isNotEmpty) return dept;
+    }
+    return (data['department'] as String?)?.trim();
   }
 }
 

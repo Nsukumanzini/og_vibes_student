@@ -125,7 +125,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required VoidCallback onTap,
   }) {
     return Card(
-      color: Colors.white.withValues(alpha: 0.08),
+      color: Colors.white.withOpacity(0.08),
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
         leading: Icon(icon, color: Colors.white70),
@@ -227,13 +227,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
               }
               final navigator = Navigator.of(context);
               try {
-                final response = await Supabase.instance.client.from('bug_reports').insert({
+                await Supabase.instance.client.from('bug_reports').insert({
                   'user_id': _user?.id,
                   'description': text,
-                }).execute();
-                if (response.error != null) {
-                  throw response.error!.message;
-                }
+                });
                 if (!mounted) return;
                 navigator.pop();
                 _showSnack('Bug report sent. Thank you!');
@@ -291,14 +288,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     try {
       await Supabase.instance.client.auth.signOut();
-      final response = await Supabase.instance.client
+      await Supabase.instance.client
           .from('profiles')
           .delete()
-          .eq('id', user.id)
-          .execute();
-      if (response.error != null) {
-        throw Exception(response.error!.message);
-      }
+          .eq('id', user.id);
       await _authService.signOut();
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(

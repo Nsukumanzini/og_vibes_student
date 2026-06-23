@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
 
@@ -57,6 +55,23 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen> {
   ];
 
   final List<String> _levels = const ['All', 'Level 2', 'Level 3', 'Level 4'];
+
+  final List<Map<String, String>> _incoming = [
+    {
+      'id': 'r1',
+      'name': 'Teboho M.',
+      'course': 'Mechanical Engineering',
+      'level': 'Level 3',
+      'status': 'Pending',
+    },
+    {
+      'id': 'r2',
+      'name': 'Aisha N.',
+      'course': 'Public Relations',
+      'level': 'Level 2',
+      'status': 'Pending',
+    },
+  ];
 
   @override
   void dispose() {
@@ -127,7 +142,7 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen> {
                   : ListView.separated(
                       padding: EdgeInsets.zero,
                       itemCount: matches.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 12),
+                      separatorBuilder: (_, _) => const SizedBox(height: 12),
                       itemBuilder: (context, index) {
                         final student = matches[index];
                         return _StudentCard(

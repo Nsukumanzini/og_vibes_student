@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
@@ -18,7 +17,7 @@ class DocumentWalletScreen extends StatefulWidget {
 
 class _DocumentWalletScreenState extends State<DocumentWalletScreen> {
   final List<_WalletDocument> _documents = [];
-  bool _isAdding = false;
+  
 
   @override
   Widget build(BuildContext context) {
@@ -78,7 +77,7 @@ class _DocumentWalletScreenState extends State<DocumentWalletScreen> {
                     child: ListView.separated(
                       padding: const EdgeInsets.only(bottom: 120, top: 8),
                       itemCount: _documents.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 12),
+                      separatorBuilder: (_, _) => const SizedBox(height: 12),
                       itemBuilder: (context, index) {
                         final document = _documents[index];
                         return _DocumentCard(

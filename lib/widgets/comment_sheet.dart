@@ -35,18 +35,15 @@ class _CommentSheetState extends State<CommentSheet> {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
     try {
-      final response = await Supabase.instance.client
+        final data = await Supabase.instance.client
           .from('profiles')
           .select('name, avatar_url')
           .eq('id', user.id)
-          .single()
-          .execute();
-
-      if (response.error != null) return;
-      final data = response.data as Map<String, dynamic>?;
+          .single();
+        final map = data as Map<String, dynamic>?;
       setState(() {
-        _userName = data?['name'] as String? ?? user.email ?? 'OG Vibester';
-        _userAvatar = data?['avatar_url'] as String?;
+        _userName = map?['name'] as String? ?? user.email ?? 'OG Vibester';
+        _userAvatar = map?['avatar_url'] as String?;
       });
     } catch (_) {
       // ignore errors, fall back to auth defaults
@@ -73,10 +70,16 @@ class _CommentSheetState extends State<CommentSheet> {
         'author_id': user.id,
         'text': text,
         'parent_id': _replyingToId,
-      }).execute();
+      });
 
-      if (response.error != null) {
-        throw response.error!.message;
+      // Newer Supabase clients often return raw data instead of a
+      // PostgrestResponse. Attempt to read `.error` dynamically,
+      // otherwise assume success if no exception was thrown.
+      try {
+        final err = (response as dynamic).error;
+        if (err != null) throw err.message ?? err.toString();
+      } catch (_) {
+        // no `.error` getter — treat as success
       }
 
       setState(() {
@@ -111,10 +114,11 @@ class _CommentSheetState extends State<CommentSheet> {
     try {
       final response = await Supabase.instance.client
           .from('comment_likes')
-          .insert({'comment_id': commentId, 'user_id': user.id}).execute();
-      if (response.error != null) {
-        throw response.error!.message;
-      }
+          .insert({'comment_id': commentId, 'user_id': user.id});
+      try {
+        final err = (response as dynamic).error;
+        if (err != null) throw err.message ?? err.toString();
+      } catch (_) {}
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -132,11 +136,11 @@ class _CommentSheetState extends State<CommentSheet> {
         'post_id': widget.postId,
         'comment_id': comment['id']?.toString(),
         'reason': reason.trim(),
-      }).execute();
-
-      if (response.error != null) {
-        throw response.error!.message;
-      }
+      });
+      try {
+        final err = (response as dynamic).error;
+        if (err != null) throw err.message ?? err.toString();
+      } catch (_) {}
 
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -206,6 +210,20 @@ class _CommentSheetState extends State<CommentSheet> {
           style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
         ),
         const Spacer(),
+        if ((_userAvatar != null && _userAvatar!.isNotEmpty) || (_userName != null && _userName!.isNotEmpty)) ...[
+          CircleAvatar(
+            radius: 16,
+            backgroundImage: (_userAvatar != null && _userAvatar!.isNotEmpty) ? NetworkImage(_userAvatar!) : null,
+            child: (_userAvatar == null || _userAvatar!.isEmpty) ? Text((_userName ?? 'U')[0].toUpperCase()) : null,
+          ),
+          const SizedBox(width: 8),
+          if (_userName != null)
+            Text(
+              _userName!,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+          const SizedBox(width: 12),
+        ],
         IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => Navigator.of(context).maybePop(),
@@ -215,26 +233,21 @@ class _CommentSheetState extends State<CommentSheet> {
   }
 
   Widget _buildCommentsList() {
-    return FutureBuilder<PostgrestResponse>(
-      future: Supabase.instance.client
-          .from('comments')
-          .select('*, profiles(name, surname, photo_url)')
-          .eq('post_id', widget.postId)
-          .order('created_at', ascending: true)
-          .execute(),
+    return FutureBuilder<List<dynamic>>(
+      future: _fetchComments(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return _buildShimmerPlaceholder();
         }
 
-        if (snapshot.hasError || snapshot.data?.error != null) {
-          final error = snapshot.data?.error?.message ?? snapshot.error;
+        if (snapshot.hasError) {
+          final error = snapshot.error;
           return Center(
             child: Text('Error loading comments: $error'),
           );
         }
 
-        final data = snapshot.data?.data as List<dynamic>? ?? [];
+        final data = snapshot.data ?? [];
         if (data.isEmpty) {
           return const Center(child: Text('No comments yet. Be the first!'));
         }
@@ -248,6 +261,36 @@ class _CommentSheetState extends State<CommentSheet> {
         );
       },
     );
+  }
+
+  Future<List<dynamic>> _fetchComments() async {
+    try {
+      final res = await Supabase.instance.client
+          .from('comments')
+          .select('*, profiles(name, surname, photo_url)')
+          .eq('post_id', widget.postId)
+          .order('created_at', ascending: true);
+
+      // Newer clients may return the data directly or wrap it.
+      try {
+        final dyn = res as dynamic;
+        if (dyn is List) return dyn;
+        if (dyn is Map && dyn['data'] is List) return dyn['data'] as List<dynamic>;
+      } catch (_) {}
+      return <dynamic>[];
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  String _extractCommentAuthorName(Map<String, dynamic>? profile) {
+    if (profile == null) return 'OG Vibester';
+    final name = (profile['name'] as String?)?.trim();
+    final surname = (profile['surname'] as String?)?.trim();
+    if ((name?.isNotEmpty ?? false) && (surname?.isNotEmpty ?? false)) {
+      return '$name ${surname!}';
+    }
+    return name ?? surname ?? 'OG Vibester';
   }
 
   Widget _buildShimmerPlaceholder() {

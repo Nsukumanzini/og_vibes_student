@@ -218,26 +218,25 @@ class _PanicButtonState extends State<PanicButton>
   Future<_UserProfile> _resolveUserProfile() async {
     final user = Supabase.instance.client.auth.currentUser;
     final uid = user?.id ?? 'anonymous';
-    var name = user?.email?.split('@').first?.trim();
+    var name = user?.email?.split('@').first.trim();
     var campus = 'Unknown';
 
     if (user != null) {
       try {
-        final response = await Supabase.instance.client
+        final data = await Supabase.instance.client
             .from('profiles')
             .select('name, campus')
             .eq('id', uid)
-            .single()
-            .execute();
-        if (response.error == null) {
-          final data = response.data as Map<String, dynamic>?;
-          final profileName = (data?['name'] as String?)?.trim();
-          final profileCampus = (data?['campus'] as String?)?.trim();
+            .single();
+        final map = data as Map<String, dynamic>?;
+        if (map != null) {
+          final profileName = (map['name'] as String?)?.trim();
+          final profileCampus = (map['campus'] as String?)?.trim();
           if (profileName?.isNotEmpty == true) {
             name = profileName;
           }
           if (profileCampus?.isNotEmpty == true) {
-            campus = profileCampus;
+            campus = profileCampus!;
           }
         }
       } catch (error) {
@@ -257,15 +256,22 @@ class _PanicButtonState extends State<PanicButton>
     _UserProfile profile,
     String mapsLink,
   ) async {
-    final response = await Supabase.instance.client.from('admin_alerts').insert({
-      'student_id': profile.uid,
-      'type': 'PANIC',
-      'campus': profile.campus,
-      'location': mapsLink,
-      'status': 'PENDING',
-    }).execute();
-    if (response.error != null) {
-      throw Exception(response.error!.message);
+    try {
+      final res = await Supabase.instance.client.from('admin_alerts').insert({
+        'student_id': profile.uid,
+        'type': 'PANIC',
+        'campus': profile.campus,
+        'location': mapsLink,
+        'status': 'PENDING',
+      });
+      try {
+        final err = (res as dynamic).error;
+        if (err != null) throw Exception(err.message ?? err.toString());
+      } catch (_) {
+        // no .error getter — assume success
+      }
+    } catch (e) {
+      rethrow;
     }
   }
 

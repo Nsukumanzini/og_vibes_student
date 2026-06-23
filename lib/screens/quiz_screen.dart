@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:og_vibes_student/screens/lms_quiz_lockdown_screen.dart';
 import 'package:og_vibes_student/widgets/vibe_scaffold.dart';
 
 class QuizScreen extends StatefulWidget {
@@ -58,7 +59,7 @@ class _QuizScreenState extends State<QuizScreen> {
             ? const Center(child: Text('No quizzes available right now.'))
             : ListView.separated(
                 itemCount: _quizzes.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                separatorBuilder: (_, _) => const SizedBox(height: 12),
                 itemBuilder: (context, index) {
                   final q = _quizzes[index];
                   return Card(

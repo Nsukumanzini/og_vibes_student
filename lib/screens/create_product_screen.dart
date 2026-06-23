@@ -99,9 +99,9 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
 
       for (final image in _images) {
         final String fileName = '${user.id}/${DateTime.now().millisecondsSinceEpoch}_${image.name}.jpg';
-        await Supabase.instance.client.storage.from('products').uploadBytes(fileName, image.bytes);
-        final publicUrl = Supabase.instance.client.storage.from('products').getPublicUrl(fileName);
-        imageUrls.add(publicUrl.data!);
+        await Supabase.instance.client.storage.from('products').uploadBinary(fileName, image.bytes);
+        final signedUrl = await Supabase.instance.client.storage.from('products').createSignedUrl(fileName, 60 * 60 * 24 * 365);
+        imageUrls.add(signedUrl);
       }
 
       final response = await Supabase.instance.client.from('products').insert({
@@ -113,7 +113,7 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
         'images': imageUrls,
         'seller_id': user.id,
         'status': 'available',
-      }).execute();
+      });
 
       if (response.error != null) {
         throw response.error!.message;
@@ -341,9 +341,7 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
                             right: -6,
                             child: IconButton(
                               style: IconButton.styleFrom(
-                                backgroundColor: Colors.black.withValues(
-                                  alpha: 0.6,
-                                ),
+                                backgroundColor: Colors.black.withOpacity(0.6),
                                 foregroundColor: Colors.white,
                                 padding: EdgeInsets.zero,
                               ),
